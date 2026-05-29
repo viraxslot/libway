@@ -69,6 +69,19 @@ Build and install into /Applications (so Spotlight and autostart find it):
 npm run install:mac
 ```
 
+## Releasing
+
+```bash
+npm run release:version -- patch   # or minor | major | X.Y.Z
+npm run release:publish
+```
+
+`release:version` bumps the version in package.json, tauri.conf.json and
+Cargo.toml, then commits and tags it. `release:publish` builds a `.dmg`,
+pushes the commit and tag, and creates a GitHub release with auto-generated
+notes (requires the `gh` CLI). The `.dmg` is unsigned, so first launch needs
+right-click → Open to get past Gatekeeper.
+
 ## GitHub token
 
 Not required for public repositories, but it raises the API rate limit
