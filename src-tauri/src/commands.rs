@@ -10,7 +10,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::checker;
 use crate::db::{self, Db, Repo};
 use crate::scheduler;
-use crate::{keychain, tray};
+use crate::{github, keychain, tray};
 
 /// Map any error into a String for the frontend.
 fn e<E: std::fmt::Display>(err: E) -> String {
@@ -44,12 +44,22 @@ pub fn list_repos(db: State<'_, Db>) -> Result<Vec<Repo>, String> {
 }
 
 #[tauri::command]
-pub fn add_repo(
+pub async fn add_repo(
     app: AppHandle,
     db: State<'_, Db>,
     full_name: String,
 ) -> Result<Vec<Repo>, String> {
     let (owner, name) = parse_full_name(&full_name)?;
+
+    // Verify the repository exists on GitHub before storing it, so typos and
+    // non-existent repos don't end up in the list.
+    let token = keychain::get_token().unwrap_or(None);
+    match github::repo_exists(&owner, &name, token.as_deref()).await {
+        Ok(true) => {}
+        Ok(false) => return Err(format!("repository {owner}/{name} was not found on GitHub")),
+        Err(err) => return Err(format!("could not verify {owner}/{name}: {err}")),
+    }
+
     {
         let conn = db.0.lock().unwrap();
         db::add_repo(&conn, &owner, &name, now()).map_err(e)?;

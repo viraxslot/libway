@@ -61,6 +61,25 @@ fn client(token: Option<&str>) -> Result<reqwest::Client> {
         .context("failed to build the HTTP client")
 }
 
+/// Check whether the public repository `owner/name` exists on GitHub.
+/// Returns Ok(true) on 200, Ok(false) on 404, and Err on network/other errors
+/// (so the caller can distinguish "definitely missing" from "couldn't check").
+pub async fn repo_exists(owner: &str, name: &str, token: Option<&str>) -> Result<bool> {
+    let client = client(token)?;
+    let url = format!("{API_BASE}/repos/{owner}/{name}");
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .with_context(|| format!("could not reach GitHub to verify {owner}/{name}"))?;
+
+    match resp.status() {
+        s if s.is_success() => Ok(true),
+        reqwest::StatusCode::NOT_FOUND => Ok(false),
+        s => Err(anyhow!("GitHub returned {s} while verifying {owner}/{name}")),
+    }
+}
+
 /// Fetch the latest version of repository `owner/name`.
 /// `token` is an optional GitHub token (raises rate limits; less needed for
 /// public repos, but we pass it along whenever it is present).

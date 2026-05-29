@@ -4,12 +4,13 @@ A macOS menu-bar utility that tracks the versions of GitHub tools you care
 about and notifies you about new releases.
 
 - Lives in the menu bar (tray), with no Dock icon.
-- Checks a list of repositories every 10 minutes: first the latest release
-  (`releases/latest`), falling back to the latest tag when there are no
-  releases.
+- Periodically checks a list of repositories (interval configurable, default
+  10 minutes): first the latest release (`releases/latest`), falling back to
+  the latest tag when there are no releases.
 - Native notifications when a new version ships.
 - The tray menu shows current versions; clicking opens the release page.
-- The repository list and token are managed in the settings window.
+- A settings window with two tabs: Repositories (add with validation, search,
+  remove) and Settings (token, check interval, check-on-startup, autostart).
 
 ## Stack
 
@@ -23,17 +24,20 @@ about and notifies you about new releases.
 ```
 src/                React + TS (settings window)
   api.ts            wrappers over Tauri invoke()
-  components/       RepoList, RepoRow, AddRepoForm, TokenSettings
+  components/       RepositoriesTab, SettingsTab and their parts
+                    (AddRepoForm, RepoList, RepoRow, ConfirmDialog,
+                     TokenSettings, IntervalSettings, AutostartSettings)
 src-tauri/src/
   lib.rs            app setup, state, window events
   commands.rs       commands invoked from the UI
   db.rs             SQLite: schema + CRUD
   keychain.rs       token in the Keychain
-  github.rs         GitHub API: releases → tags, version comparison
+  github.rs         GitHub API: existence check, releases → tags, comparison
   checker.rs        core check logic (shared by command and scheduler)
   scheduler.rs      background checking loop
   tray.rs           tray menu and indicator
   notify.rs         native notifications
+scripts/install-mac.sh   build the .app and install it into /Applications
 ```
 
 Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
@@ -46,16 +50,23 @@ npm install
 npm run tauri dev      # run in dev mode (window + tray)
 ```
 
-Rust tests:
+Note: native notifications only work from a built `.app`, not from
+`npm run tauri dev` (macOS does not register the unsigned dev binary). The
+tray and the window work in dev; use a build to test notifications.
+
+Lint/format (Biome) and Rust tests:
 
 ```bash
-cargo test --manifest-path src-tauri/Cargo.toml
+npm run lint           # biome check src  (lint:fix to autofix)
+npm run test:rust      # cargo test
 ```
 
-Release build (.app):
+A Biome + cargo-test pre-commit hook runs automatically (husky + lint-staged).
+
+Build and install into /Applications (so Spotlight and autostart find it):
 
 ```bash
-npm run tauri build
+npm run install:mac
 ```
 
 ## GitHub token
@@ -67,8 +78,13 @@ will be stored in the Keychain.
 
 ## Notes
 
+- Adding a repository verifies it exists on GitHub first; unknown repos are
+  rejected with an error.
 - Pre-release versions are ignored (we use `releases/latest`).
 - "New" means a version newer than the one the app has already shown; the
-  indicator clears when the release is opened or via `mark_seen`.
+  indicator clears when the release is opened, via "Mark all as read", or
+  when a single entry is opened.
+- The check interval and whether to check on startup are configurable in the
+  Settings tab.
 - Launch at login is toggled in the settings (`tauri-plugin-autostart`,
   Login Items).

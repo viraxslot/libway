@@ -38,7 +38,7 @@ export default function AddRepoForm({ onAdd }: Props) {
         autoCapitalize="off"
       />
       <button type="submit" disabled={busy || !value.trim()}>
-        Add
+        {busy ? "Adding…" : "Add"}
       </button>
       {error && <p className="error">{error}</p>}
     </form>
