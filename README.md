@@ -43,6 +43,17 @@ scripts/install-mac.sh   build the .app and install it into /Applications
 Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
 Token: Keychain, service `libway`, account `github-token`.
 
+## Prerequisites
+
+- **Node 24+** and **Rust** (stable) with the Xcode Command Line Tools.
+- The Node version is pinned via [`mise`](https://mise.jdx.dev) (`mise.toml`)
+  and enforced by `engines` in `package.json`.
+
+```bash
+mise install          # installs the pinned Node (24) for this project
+# without mise: just make sure `node -v` is >= 24
+```
+
 ## Development
 
 ```bash
