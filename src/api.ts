@@ -41,6 +41,14 @@ export function setCheckInterval(minutes: number): Promise<void> {
   return invoke("set_check_interval", { minutes });
 }
 
+export function getCheckOnStartup(): Promise<boolean> {
+  return invoke<boolean>("get_check_on_startup");
+}
+
+export function setCheckOnStartup(enabled: boolean): Promise<void> {
+  return invoke("set_check_on_startup", { enabled });
+}
+
 // --- GitHub token (stored in the Keychain) ---
 
 export function hasToken(): Promise<boolean> {

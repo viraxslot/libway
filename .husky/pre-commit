@@ -1,0 +1,9 @@
+# Format/lint staged frontend files with Biome.
+npx lint-staged
+
+# Run Rust unit tests only when Rust sources changed (skip otherwise to keep
+# frontend-only commits fast).
+if git diff --cached --name-only | grep -q '^src-tauri/.*\.rs$'; then
+  echo "Rust sources changed — running cargo test…"
+  cargo test --manifest-path src-tauri/Cargo.toml --lib
+fi

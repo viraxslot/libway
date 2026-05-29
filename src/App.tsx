@@ -3,23 +3,21 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addRepo,
   checkNow,
-  getAutostart,
   listRepos,
   markAllSeen,
   markSeen,
   removeRepo,
-  setAutostart,
 } from "./api";
-import AddRepoForm from "./components/AddRepoForm";
-import IntervalSettings from "./components/IntervalSettings";
-import RepoList from "./components/RepoList";
-import TokenSettings from "./components/TokenSettings";
+import RepositoriesTab from "./components/RepositoriesTab";
+import SettingsTab from "./components/SettingsTab";
 import type { Repo } from "./types";
+
+type Tab = "repositories" | "settings";
 
 export default function App() {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [checking, setChecking] = useState(false);
-  const [autostart, setAutostartState] = useState(false);
+  const [tab, setTab] = useState<Tab>("repositories");
 
   const reload = useCallback(async () => {
     setRepos(await listRepos());
@@ -28,9 +26,6 @@ export default function App() {
   // Initial load + subscribe to backend-driven updates (scheduler runs).
   useEffect(() => {
     reload();
-    getAutostart()
-      .then(setAutostartState)
-      .catch(() => {});
     const unlisten = listen("repos-updated", () => {
       reload();
     });
@@ -66,12 +61,6 @@ export default function App() {
     reload();
   }
 
-  async function toggleAutostart() {
-    const next = !autostart;
-    await setAutostart(next);
-    setAutostartState(next);
-  }
-
   const anyUnseen = repos.some((r) => r.hasUnseen);
 
   return (
@@ -93,22 +82,33 @@ export default function App() {
         </div>
       </header>
 
-      <AddRepoForm onAdd={handleAdd} />
-      <RepoList repos={repos} onRemove={handleRemove} onSeen={handleSeen} />
+      <nav className="tabs">
+        <button
+          type="button"
+          className={tab === "repositories" ? "tab active" : "tab"}
+          onClick={() => setTab("repositories")}
+        >
+          Repositories
+        </button>
+        <button
+          type="button"
+          className={tab === "settings" ? "tab active" : "tab"}
+          onClick={() => setTab("settings")}
+        >
+          Settings
+        </button>
+      </nav>
 
-      <TokenSettings />
-      <IntervalSettings />
-
-      <section className="autostart">
-        <label>
-          <input
-            type="checkbox"
-            checked={autostart}
-            onChange={toggleAutostart}
-          />
-          Launch at login
-        </label>
-      </section>
+      {tab === "repositories" ? (
+        <RepositoriesTab
+          repos={repos}
+          onAdd={handleAdd}
+          onRemove={handleRemove}
+          onSeen={handleSeen}
+        />
+      ) : (
+        <SettingsTab />
+      )}
     </main>
   );
 }

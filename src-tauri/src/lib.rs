@@ -34,6 +34,10 @@ pub fn run() {
             let db = Db::open(&data_dir.join("libway.db"))?;
             app.manage(db);
 
+            // Ask for notification permission up front (macOS shows nothing
+            // otherwise).
+            notify::ensure_permission(app.handle());
+
             // Create the tray icon and build its initial menu.
             tray::create(app.handle())?;
 
@@ -60,6 +64,8 @@ pub fn run() {
             commands::check_now,
             commands::get_check_interval,
             commands::set_check_interval,
+            commands::get_check_on_startup,
+            commands::set_check_on_startup,
             commands::has_token,
             commands::set_token,
             commands::clear_token,

@@ -36,7 +36,7 @@ src-tauri/src/
   notify.rs         native notifications
 ```
 
-Data: `~/Library/Application Support/com.libway.app/libway.db`.
+Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
 Token: Keychain, service `libway`, account `github-token`.
 
 ## Development

@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { getCheckInterval, setCheckInterval } from "../api";
+import {
+  getCheckInterval,
+  getCheckOnStartup,
+  setCheckInterval,
+  setCheckOnStartup,
+} from "../api";
 
-/** Editable check interval in minutes. */
+/** Editable check interval in minutes plus the "check on startup" toggle. */
 export default function IntervalSettings() {
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [onStartup, setOnStartup] = useState(true);
 
   useEffect(() => {
     getCheckInterval()
@@ -13,6 +19,9 @@ export default function IntervalSettings() {
         setSaved(m);
         setValue(String(m));
       })
+      .catch(() => {});
+    getCheckOnStartup()
+      .then(setOnStartup)
       .catch(() => {});
   }, []);
 
@@ -29,6 +38,12 @@ export default function IntervalSettings() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function toggleOnStartup() {
+    const next = !onStartup;
+    await setCheckOnStartup(next);
+    setOnStartup(next);
   }
 
   return (
@@ -52,6 +67,10 @@ export default function IntervalSettings() {
           Save
         </button>
       </div>
+      <label className="checkbox-row">
+        <input type="checkbox" checked={onStartup} onChange={toggleOnStartup} />
+        Check on startup
+      </label>
     </section>
   );
 }

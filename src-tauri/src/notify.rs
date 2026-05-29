@@ -1,9 +1,21 @@
 //! Native macOS notifications via tauri-plugin-notification.
 
 use tauri::AppHandle;
-use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_notification::{NotificationExt, PermissionState};
 
 use crate::db::Repo;
+
+/// Request notification permission at startup if it has not been granted yet.
+/// Without this, `show()` silently fails on macOS.
+pub fn ensure_permission(app: &AppHandle) {
+    let notif = app.notification();
+    let granted = matches!(notif.permission_state(), Ok(PermissionState::Granted));
+    if !granted {
+        if let Err(e) = notif.request_permission() {
+            eprintln!("libway: failed to request notification permission: {e:#}");
+        }
+    }
+}
 
 /// Show a notification with the given title and body.
 fn show(app: &AppHandle, title: impl Into<String>, body: impl Into<String>) {

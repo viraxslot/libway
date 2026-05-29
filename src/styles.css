@@ -243,3 +243,89 @@ input[type="password"] {
   background: var(--bg);
   color: var(--fg);
 }
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.tab {
+  border: none;
+  background: none;
+  border-radius: 0;
+  padding: 6px 10px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  display: block;
+}
+
+/* Search */
+.search {
+  width: 100%;
+  font: inherit;
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  margin-bottom: 12px;
+}
+
+/* Danger button */
+button.danger {
+  background: var(--badge);
+  border-color: var(--badge);
+  color: #fff;
+}
+
+/* Modal (native <dialog>) */
+.modal {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  width: 320px;
+  max-width: calc(100% - 40px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.modal p {
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

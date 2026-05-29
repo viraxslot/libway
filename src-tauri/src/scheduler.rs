@@ -1,9 +1,10 @@
 //! Background scheduler: periodically checks all repositories.
 //!
 //! Runs as a detached tokio task. The interval comes from the `settings`
-//! table (key `check_interval_minutes`), defaulting to 10 minutes. A first
-//! check fires shortly after launch so the tray is populated without waiting
-//! a full interval.
+//! table (key `check_interval_minutes`), defaulting to 10 minutes. When the
+//! `check_on_startup` setting is enabled (default) a first check fires shortly
+//! after launch so the tray is populated without waiting a full interval;
+//! otherwise the first check only happens after one interval has elapsed.
 //!
 //! The loop sleeps in short ticks rather than one long sleep, so a new
 //! interval set from the UI is picked up quickly instead of only after the
@@ -18,8 +19,12 @@ use crate::db::{self, Db};
 
 /// Settings key holding the check interval in minutes.
 pub const SETTING_INTERVAL: &str = "check_interval_minutes";
+/// Settings key holding whether to check immediately on startup ("0"/"1").
+pub const SETTING_CHECK_ON_STARTUP: &str = "check_on_startup";
 /// Default interval when the setting is unset or invalid.
 pub const DEFAULT_INTERVAL_MINUTES: u64 = 10;
+/// Default for "check on startup" when the setting is unset.
+pub const DEFAULT_CHECK_ON_STARTUP: bool = true;
 /// Short delay before the first check, to let the app finish starting up.
 const STARTUP_DELAY_SECS: u64 = 5;
 /// How often the loop wakes to re-evaluate whether a check is due.
@@ -36,6 +41,16 @@ pub fn interval_minutes(db: &Db) -> u64 {
         .unwrap_or(DEFAULT_INTERVAL_MINUTES)
 }
 
+/// Read whether to run a check immediately at startup.
+pub fn check_on_startup(db: &Db) -> bool {
+    let conn = db.0.lock().unwrap();
+    db::get_setting(&conn, SETTING_CHECK_ON_STARTUP)
+        .ok()
+        .flatten()
+        .map(|v| v == "1")
+        .unwrap_or(DEFAULT_CHECK_ON_STARTUP)
+}
+
 /// Spawn the background checking loop.
 pub fn spawn(app: &AppHandle) {
     let app = app.clone();
@@ -44,8 +59,11 @@ pub fn spawn(app: &AppHandle) {
 
         // Seconds elapsed since the last completed check.
         let mut elapsed: u64 = 0;
-        // Run a check immediately on the first iteration.
-        let mut due = true;
+        // Whether a check is due now (immediately on startup if configured).
+        let mut due = {
+            let db = app.state::<Db>();
+            check_on_startup(&db)
+        };
 
         loop {
             if due {
