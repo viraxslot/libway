@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "install:mac": "bash scripts/install-mac.sh",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
