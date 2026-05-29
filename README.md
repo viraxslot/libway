@@ -72,7 +72,10 @@ npm run lint           # biome check src  (lint:fix to autofix)
 npm run test:rust      # cargo test
 ```
 
-A Biome + cargo-test pre-commit hook runs automatically (husky + lint-staged).
+Git hooks (husky) run automatically: a pre-commit hook formats staged files
+with Biome and runs the Rust tests, and a commit-msg hook enforces
+[Conventional Commits](https://www.conventionalcommits.org) via commitlint
+(e.g. `feat: …`, `fix: …`, `chore: …`).
 
 Build and install into /Applications (so Spotlight and autostart find it):
 
@@ -112,3 +115,4 @@ will be stored in the Keychain.
   Settings tab.
 - Launch at login is toggled in the settings (`tauri-plugin-autostart`,
   Login Items).
+
