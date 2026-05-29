@@ -1,0 +1,14 @@
+# Frontend
+node_modules
+dist
+*.local
+
+# Rust / Tauri
+src-tauri/target
+src-tauri/gen
+
+# Generated icon source (the icon set already lives in src-tauri/icons)
+app-icon.png
+
+# System
+.DS_Store

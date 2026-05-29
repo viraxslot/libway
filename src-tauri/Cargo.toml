@@ -1,0 +1,37 @@
+[package]
+name = "libway"
+version = "0.1.0"
+description = "Menu-bar tracker for GitHub tool release versions on macOS"
+authors = ["Alexander Vershinin"]
+edition = "2021"
+
+# Library name. Tauri uses lib + main: main.rs just launches lib.rs.
+[lib]
+name = "libway_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-autostart = "2"
+
+# Storage and secrets
+rusqlite = { version = "0.37", features = ["bundled"] }
+keyring = { version = "3", features = ["apple-native"] }
+
+# HTTP client for the GitHub API (rustls — no system OpenSSL)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+
+# Serialization and version comparison
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+semver = "1"
+
+# Misc helpers
+anyhow = "1"
+dirs = "5"
