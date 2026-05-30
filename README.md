@@ -7,6 +7,16 @@ settings window.
 
 See [CHANGELOG.md](CHANGELOG.md) for the history of changes.
 
+## Installation
+
+Download the `.dmg` from the [latest release](../../releases/latest) and drag
+`libway.app` into Applications. The app is ad-hoc signed but not notarized by
+Apple, so on first launch macOS blocks it as an "unidentified developer".
+Either:
+
+- **right-click** `libway.app` in Applications → **Open** → **Open**, or
+- run `xattr -dr com.apple.quarantine /Applications/libway.app`, then open it.
+
 ## Stack
 
 - **Tauri 2** + **React + TypeScript** (Vite) — the settings window UI.

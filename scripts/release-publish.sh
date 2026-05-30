@@ -23,8 +23,10 @@ if ! command -v gh >/dev/null; then
 fi
 
 echo "Building .dmg for ${TAG}..."
-# CI=true makes the DMG step non-interactive: it skips the AppleScript that
-# opens a Finder window to lay out the drag-to-Applications view.
+# The .app is ad-hoc signed via bundle.macOS.signingIdentity = "-" in
+# tauri.conf.json, which produces a valid signature and avoids the "app is
+# damaged" error. Downloaders still clear the quarantine (see notes footer).
+# CI=true keeps the dmg step non-interactive (no Finder layout window).
 CI=true npm run tauri build -- --bundles dmg
 
 DMG="$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
