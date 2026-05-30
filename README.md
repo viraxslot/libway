@@ -11,6 +11,8 @@ about and notifies you about new releases.
 - The tray menu shows a status line (update count + last-checked time) and the
   current versions; clicking an entry opens the release page.
 - Repositories can be tagged; the tray groups them into per-tag submenus.
+- An About submenu in the tray shows the version, authors and a link to the
+  repository.
 - A settings window with two tabs: Repositories (add with validation, search,
   tag, remove) and Settings (token, check interval, check-on-startup, autostart).
 
@@ -42,6 +44,7 @@ src-tauri/src/
   notify.rs         native notifications
 scripts/build-mac.sh     build the .app (no install)
 scripts/install-mac.sh   build the .app and install it into /Applications
+scripts/check-versions.sh  assert the version matches across config files
 ```
 
 Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
@@ -101,6 +104,10 @@ Cargo.toml, then commits and tags it. `release:publish` builds a `.dmg`,
 pushes the commit and tag, and creates a GitHub release with auto-generated
 notes (requires the `gh` CLI). The `.dmg` is unsigned, so first launch needs
 right-click → Open to get past Gatekeeper.
+
+The version must stay in sync across those three files (the tray's About
+reads it from Cargo.toml). `build:mac` and `release:publish` verify this
+automatically; run `npm run check:versions` to check manually.
 
 ## GitHub token
 
