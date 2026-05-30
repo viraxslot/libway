@@ -1,28 +1,10 @@
-//! Tauri commands — the bridge invoked from the React frontend.
-//!
-//! Commands return `Result<_, String>` because Tauri serializes the error
-//! variant to the frontend; we stringify anyhow errors for display.
+//! Commands for managing tracked repositories and their tags.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Emitter, State};
 
-use tauri::{AppHandle, Emitter, Manager, State};
-
-use crate::checker;
+use super::{e, now};
 use crate::db::{self, Db, Repo};
-use crate::scheduler;
-use crate::{github, keychain};
-
-/// Map any error into a String for the frontend.
-fn e<E: std::fmt::Display>(err: E) -> String {
-    err.to_string()
-}
-
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
+use crate::github;
 
 /// Parse an "owner/name" string into its two parts.
 fn parse_full_name(input: &str) -> Result<(String, String), String> {
@@ -154,103 +136,6 @@ pub fn mark_all_seen<R: tauri::Runtime>(
         db::mark_all_seen(&conn).map_err(e)?;
     }
     app.emit("repos-updated", ()).map_err(e)
-}
-
-// --- Check interval ---
-
-/// Current check interval in minutes (falls back to the default).
-#[tauri::command]
-pub fn get_check_interval(db: State<'_, Db>) -> Result<u64, String> {
-    Ok(scheduler::interval_minutes(&db))
-}
-
-/// Set the check interval in minutes. Must be >= 1.
-#[tauri::command]
-pub fn set_check_interval(db: State<'_, Db>, minutes: u64) -> Result<(), String> {
-    if minutes < 1 {
-        return Err("interval must be at least 1 minute".to_string());
-    }
-    let conn = db.0.lock().unwrap();
-    db::set_setting(&conn, scheduler::SETTING_INTERVAL, &minutes.to_string()).map_err(e)
-}
-
-/// Whether a check runs immediately at startup.
-#[tauri::command]
-pub fn get_check_on_startup(db: State<'_, Db>) -> Result<bool, String> {
-    Ok(scheduler::check_on_startup(&db))
-}
-
-/// Set whether a check runs immediately at startup.
-#[tauri::command]
-pub fn set_check_on_startup(db: State<'_, Db>, enabled: bool) -> Result<(), String> {
-    let conn = db.0.lock().unwrap();
-    let value = if enabled { "1" } else { "0" };
-    db::set_setting(&conn, scheduler::SETTING_CHECK_ON_STARTUP, value).map_err(e)
-}
-
-/// Trigger an immediate check of all repositories. Returns the refreshed list.
-#[tauri::command]
-pub async fn check_now<R: tauri::Runtime>(
-    app: AppHandle<R>,
-    db: State<'_, Db>,
-    client: State<'_, Box<dyn github::GitHubApi>>,
-) -> Result<Vec<Repo>, String> {
-    checker::check_all(&app, &db, client.inner().as_ref())
-        .await
-        .map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
-}
-
-// --- GitHub token (Keychain) ---
-
-#[tauri::command]
-pub fn has_token() -> Result<bool, String> {
-    keychain::has_token().map_err(e)
-}
-
-#[tauri::command]
-pub fn set_token(token: String) -> Result<(), String> {
-    let token = token.trim();
-    if token.is_empty() {
-        // Empty input means "clear the token".
-        return keychain::delete_token().map_err(e);
-    }
-    keychain::set_token(token).map_err(e)
-}
-
-#[tauri::command]
-pub fn clear_token() -> Result<(), String> {
-    keychain::delete_token().map_err(e)
-}
-
-// --- Autostart (filled in during step 8) ---
-
-#[tauri::command]
-pub fn get_autostart(app: AppHandle) -> Result<bool, String> {
-    use tauri_plugin_autostart::ManagerExt;
-    app.autolaunch().is_enabled().map_err(e)
-}
-
-#[tauri::command]
-pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
-    use tauri_plugin_autostart::ManagerExt;
-    let manager = app.autolaunch();
-    if enabled {
-        manager.enable().map_err(e)
-    } else {
-        manager.disable().map_err(e)
-    }
-}
-
-/// Open the settings window (used from the tray menu).
-#[tauri::command]
-pub fn open_settings(app: AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window("settings") {
-        win.show().map_err(e)?;
-        win.set_focus().map_err(e)?;
-    }
-    Ok(())
 }
 
 #[cfg(test)]
