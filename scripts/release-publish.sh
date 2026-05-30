@@ -41,18 +41,24 @@ echo "Pushing commit and tag..."
 git push
 git push origin "$TAG"
 
-# Deterministic codename for this tag — used in both the title and (via
-# get_env in cliff.toml) the generated notes.
-RELEASE_CODENAME="$(cargo run --quiet --manifest-path tools/codename/Cargo.toml -- "$TAG")"
-export RELEASE_CODENAME
+# Deterministic codename for this tag — used in the release title and, via the
+# JSON-context pipeline below, the generated notes.
+cargo build --quiet --release --manifest-path tools/codename/Cargo.toml
+CODENAME_BIN="tools/codename/target/release/codename-gen"
+RELEASE_CODENAME="$("$CODENAME_BIN" "$TAG")"
 TITLE="$TAG \"$RELEASE_CODENAME\""
 
-# Build release notes from the changelog (git-cliff), grouped by commit type.
-# Fall back to GitHub's auto-notes if git-cliff produces nothing.
+# Build release notes for this tag from the changelog (git-cliff), grouped by
+# commit type. Mirror the changelog pipeline: dump the JSON context, enrich each
+# release with its version-derived codename, then render from that context so
+# the notes carry the right codename. Fall back to GitHub's auto-notes if
+# git-cliff produces nothing.
 echo "Creating GitHub release ${TAG} (${RELEASE_CODENAME})..."
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
-git-cliff --current --strip header --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true
+git-cliff --current --tag "$TAG" -x 2>/dev/null \
+  | node scripts/changelog-codenames.mjs "$CODENAME_BIN" \
+  | git-cliff --from-context - --strip header > "$NOTES_FILE" 2>/dev/null || true
 
 if [ -s "$NOTES_FILE" ]; then
   gh release create "$TAG" "$DMG" --title "$TITLE" --notes-file "$NOTES_FILE"
