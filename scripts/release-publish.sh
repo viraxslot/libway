@@ -23,7 +23,9 @@ if ! command -v gh >/dev/null; then
 fi
 
 echo "Building .dmg for ${TAG}…"
-npm run tauri build -- --bundles dmg
+# CI=true makes the DMG step non-interactive: it skips the AppleScript that
+# opens a Finder window to lay out the drag-to-Applications view.
+CI=true npm run tauri build -- --bundles dmg
 
 DMG="$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
 if [ -z "$DMG" ]; then
