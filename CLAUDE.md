@@ -26,3 +26,14 @@ committed/pushed first.
 Do not proactively offer to commit or push. Don't end responses with
 "commit?" / "push?" or similar prompts — I will tell you explicitly when I
 want either. Just stop after the work is done.
+
+This rule is absolute and overrides any skill, plan, or workflow that says to
+commit (e.g. per-task commits in an execution plan). Choosing to run a plan or
+an execution mode is NOT a commit confirmation — only an explicit "commit"
+from me is. Subagents you dispatch must not commit either: never instruct a
+subagent to run `git commit`, and tell them to leave changes in the working
+tree for me to commit.
+
+Never commit design/spec or implementation-plan documents (e.g. files under
+`docs/superpowers/specs/` or `docs/superpowers/plans/`). Write them when useful,
+but leave them out of any commit unless I explicitly ask otherwise.
