@@ -392,3 +392,34 @@ button.danger {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* --- Tags tab --- */
+.tag-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.tag-row:hover {
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.tag-name {
+  font-weight: 500;
+}
+
+.tag-count {
+  margin-left: auto;
+  font-size: 0.85em;
+}

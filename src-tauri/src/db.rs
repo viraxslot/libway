@@ -167,6 +167,62 @@ pub fn set_repo_tags(conn: &Connection, id: i64, tags: &[String]) -> Result<()> 
     Ok(())
 }
 
+/// Rename a tag across every repository (case-insensitive match on the source).
+/// Renaming into a tag a repo already has merges them, because `join_tags`
+/// de-duplicates case-insensitively. Returns how many repositories changed.
+/// An empty `to`, or a `from` that no repo carries, is a no-op returning 0.
+pub fn rename_tag(conn: &Connection, from: &str, to: &str) -> Result<usize> {
+    let from_lc = from.trim().to_lowercase();
+    let to = to.trim();
+    if from_lc.is_empty() || to.is_empty() {
+        return Ok(0);
+    }
+    let mut changed = 0;
+    for repo in list_repos(conn)? {
+        if !repo.tags.iter().any(|t| t.to_lowercase() == from_lc) {
+            continue;
+        }
+        let next: Vec<String> = repo
+            .tags
+            .iter()
+            .map(|t| {
+                if t.to_lowercase() == from_lc {
+                    to.to_string()
+                } else {
+                    t.clone()
+                }
+            })
+            .collect();
+        set_repo_tags(conn, repo.id, &next)?;
+        changed += 1;
+    }
+    Ok(changed)
+}
+
+/// Remove a tag from every repository (case-insensitive match).
+/// Returns how many repositories changed. Absent tag is a no-op returning 0.
+pub fn delete_tag(conn: &Connection, tag: &str) -> Result<usize> {
+    let tag_lc = tag.trim().to_lowercase();
+    if tag_lc.is_empty() {
+        return Ok(0);
+    }
+    let mut changed = 0;
+    for repo in list_repos(conn)? {
+        if !repo.tags.iter().any(|t| t.to_lowercase() == tag_lc) {
+            continue;
+        }
+        let next: Vec<String> = repo
+            .tags
+            .iter()
+            .filter(|t| t.to_lowercase() != tag_lc)
+            .cloned()
+            .collect();
+        set_repo_tags(conn, repo.id, &next)?;
+        changed += 1;
+    }
+    Ok(changed)
+}
+
 /// Update the discovered version of a repository after a check.
 /// `has_unseen` is set to true only when the version actually changed.
 pub fn update_version(
@@ -352,5 +408,88 @@ mod tests {
         assert_eq!(get_setting(&c, "interval").unwrap().as_deref(), Some("10"));
         set_setting(&c, "interval", "5").unwrap(); // upsert
         assert_eq!(get_setting(&c, "interval").unwrap().as_deref(), Some("5"));
+    }
+
+    #[test]
+    fn rename_tag_simple() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        let b = add_repo(&c, "o", "b", 2).unwrap();
+        set_repo_tags(&c, a, &["build".to_string()]).unwrap();
+        set_repo_tags(&c, b, &["editors".to_string()]).unwrap();
+
+        let n = rename_tag(&c, "build", "ci").unwrap();
+        assert_eq!(n, 1);
+        let repos = list_repos(&c).unwrap();
+        assert_eq!(repos[0].tags, vec!["ci"]); // a: build -> ci
+        assert_eq!(repos[1].tags, vec!["editors"]); // b untouched
+    }
+
+    #[test]
+    fn rename_tag_merges_into_existing() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        // One repo carries both the source and the target tag.
+        set_repo_tags(&c, a, &["build".to_string(), "ci".to_string()]).unwrap();
+
+        let n = rename_tag(&c, "build", "ci").unwrap();
+        assert_eq!(n, 1);
+        // "build" -> "ci" collides with the existing "ci"; dedup collapses them.
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["ci"]);
+    }
+
+    #[test]
+    fn rename_tag_is_case_insensitive_and_keeps_new_case() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        set_repo_tags(&c, a, &["Build".to_string()]).unwrap();
+
+        // Source matched case-insensitively; the new spelling is kept verbatim.
+        let n = rename_tag(&c, "build", "CI").unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["CI"]);
+    }
+
+    #[test]
+    fn rename_tag_absent_is_noop() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        set_repo_tags(&c, a, &["build".to_string()]).unwrap();
+
+        let n = rename_tag(&c, "missing", "ci").unwrap();
+        assert_eq!(n, 0);
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["build"]);
+    }
+
+    #[test]
+    fn delete_tag_removes_from_all() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        let b = add_repo(&c, "o", "b", 2).unwrap();
+        set_repo_tags(&c, a, &["build".to_string(), "ci".to_string()]).unwrap();
+        set_repo_tags(&c, b, &["Build".to_string()]).unwrap();
+
+        let n = delete_tag(&c, "build").unwrap();
+        assert_eq!(n, 2); // matched on both repos, case-insensitively
+        let repos = list_repos(&c).unwrap();
+        assert_eq!(repos[0].tags, vec!["ci"]);
+        assert!(repos[1].tags.is_empty());
+    }
+
+    #[test]
+    fn delete_tag_absent_is_noop() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let a = add_repo(&c, "o", "a", 1).unwrap();
+        set_repo_tags(&c, a, &["build".to_string()]).unwrap();
+
+        let n = delete_tag(&c, "missing").unwrap();
+        assert_eq!(n, 0);
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["build"]);
     }
 }

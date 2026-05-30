@@ -97,6 +97,33 @@ pub fn set_repo_tags(
 }
 
 #[tauri::command]
+pub fn rename_tag(
+    app: AppHandle,
+    db: State<'_, Db>,
+    from: String,
+    to: String,
+) -> Result<Vec<Repo>, String> {
+    {
+        let conn = db.0.lock().unwrap();
+        db::rename_tag(&conn, &from, &to).map_err(e)?;
+    }
+    tray::refresh(&app, &db).map_err(e)?;
+    let conn = db.0.lock().unwrap();
+    db::list_repos(&conn).map_err(e)
+}
+
+#[tauri::command]
+pub fn delete_tag(app: AppHandle, db: State<'_, Db>, tag: String) -> Result<Vec<Repo>, String> {
+    {
+        let conn = db.0.lock().unwrap();
+        db::delete_tag(&conn, &tag).map_err(e)?;
+    }
+    tray::refresh(&app, &db).map_err(e)?;
+    let conn = db.0.lock().unwrap();
+    db::list_repos(&conn).map_err(e)
+}
+
+#[tauri::command]
 pub fn mark_seen(app: AppHandle, db: State<'_, Db>, id: i64) -> Result<(), String> {
     {
         let conn = db.0.lock().unwrap();

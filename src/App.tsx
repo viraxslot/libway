@@ -3,17 +3,20 @@ import { useCallback, useEffect, useState } from "react";
 import {
   addRepo,
   checkNow,
+  deleteTag,
   listRepos,
   markAllSeen,
   markSeen,
   removeRepo,
+  renameTag,
   setRepoTags,
 } from "./api";
 import RepositoriesTab from "./components/RepositoriesTab";
 import SettingsTab from "./components/SettingsTab";
+import TagsTab from "./components/TagsTab";
 import type { Repo } from "./types";
 
-type Tab = "repositories" | "settings";
+type Tab = "repositories" | "tags" | "settings";
 
 export default function App() {
   const [repos, setRepos] = useState<Repo[]>([]);
@@ -50,6 +53,14 @@ export default function App() {
 
   async function handleSetTags(id: number, tags: string[]) {
     setRepos(await setRepoTags(id, tags));
+  }
+
+  async function handleRenameTag(from: string, to: string) {
+    setRepos(await renameTag(from, to));
+  }
+
+  async function handleDeleteTag(tag: string) {
+    setRepos(await deleteTag(tag));
   }
 
   async function handleCheckNow() {
@@ -97,6 +108,13 @@ export default function App() {
         </button>
         <button
           type="button"
+          className={tab === "tags" ? "tab active" : "tab"}
+          onClick={() => setTab("tags")}
+        >
+          Tags
+        </button>
+        <button
+          type="button"
           className={tab === "settings" ? "tab active" : "tab"}
           onClick={() => setTab("settings")}
         >
@@ -104,7 +122,7 @@ export default function App() {
         </button>
       </nav>
 
-      {tab === "repositories" ? (
+      {tab === "repositories" && (
         <RepositoriesTab
           repos={repos}
           onAdd={handleAdd}
@@ -112,9 +130,15 @@ export default function App() {
           onSeen={handleSeen}
           onSetTags={handleSetTags}
         />
-      ) : (
-        <SettingsTab />
       )}
+      {tab === "tags" && (
+        <TagsTab
+          repos={repos}
+          onRenameTag={handleRenameTag}
+          onDeleteTag={handleDeleteTag}
+        />
+      )}
+      {tab === "settings" && <SettingsTab />}
     </main>
   );
 }

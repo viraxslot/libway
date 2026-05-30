@@ -11,5 +11,8 @@ src-tauri/gen
 # Generated icon source (the icon set already lives in src-tauri/icons)
 app-icon.png
 
+# Superpowers brainstorming specs and plans (local working docs)
+docs/superpowers/
+
 # System
 .DS_Store

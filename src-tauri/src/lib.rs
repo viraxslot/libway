@@ -61,6 +61,8 @@ pub fn run() {
             commands::add_repo,
             commands::remove_repo,
             commands::set_repo_tags,
+            commands::rename_tag,
+            commands::delete_tag,
             commands::mark_seen,
             commands::mark_all_seen,
             commands::check_now,
