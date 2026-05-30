@@ -3,6 +3,7 @@
 
 mod common;
 
+use pretty_assertions::assert_eq;
 use serde_json::json;
 
 #[test]

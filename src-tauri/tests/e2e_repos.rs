@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use common::FakeGitHub;
 use libway_lib::db::{self as dbmod, Db, SourceKind};
+use pretty_assertions::assert_eq;
 use serde_json::{json, Value};
 use tauri::{Listener, Manager};
 

@@ -300,6 +300,8 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     fn conn(db: &Db) -> std::sync::MutexGuard<'_, Connection> {

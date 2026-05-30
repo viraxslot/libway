@@ -81,6 +81,8 @@ pub fn count() -> i64 {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]

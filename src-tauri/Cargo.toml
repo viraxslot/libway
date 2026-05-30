@@ -38,3 +38,5 @@ async-trait = "0.1"
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+# Colored, line-by-line diffs on assert_eq! failures.
+pretty_assertions = "1"

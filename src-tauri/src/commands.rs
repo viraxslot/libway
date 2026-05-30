@@ -255,6 +255,8 @@ pub fn open_settings(app: AppHandle) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::parse_full_name;
 
     #[test]
