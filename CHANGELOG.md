@@ -6,12 +6,19 @@
 - Add build:mac script and reuse it from install:mac
 - Add an About submenu to the tray
 - Verify version is in sync before building/releasing
+- Generate CHANGELOG.md from conventional commits with git-cliff
+- Launch the app after install:mac
+- Normal-color About info and a link indicator
 
 ### 🐛 Bug Fixes
 
 - Stop the +tag input from stretching full width
 - Wrap the tag input and enlarge tag chips
 - Separate repo name and version with a dash in the tray
+- Move the About submenu next to Quit in the tray
+- Preserve tag case, dedupe case-insensitively
+- Drop the stray divider above the Settings tab
+- Show a literal ampersand in the About authors line
 
 ### 🚜 Refactor
 
