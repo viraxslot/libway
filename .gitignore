@@ -3,6 +3,9 @@ node_modules
 dist
 *.local
 
+# Test coverage reports
+coverage
+
 # Rust / Tauri
 # Cargo build artifacts in any crate (src-tauri, tools/*, …)
 target/
