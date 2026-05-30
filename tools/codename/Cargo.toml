@@ -1,0 +1,11 @@
+[package]
+name = "codename-gen"
+version = "0.1.0"
+edition = "2021"
+description = "Prints a random release codename for libway"
+
+[[bin]]
+name = "codename-gen"
+path = "src/main.rs"
+
+# No dependencies: a tiny adjective+animal generator with built-in word lists.

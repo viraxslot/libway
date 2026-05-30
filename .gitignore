@@ -4,7 +4,8 @@ dist
 *.local
 
 # Rust / Tauri
-src-tauri/target
+# Cargo build artifacts in any crate (src-tauri, tools/*, …)
+target/
 src-tauri/gen
 
 # Generated icon source (the icon set already lives in src-tauri/icons)

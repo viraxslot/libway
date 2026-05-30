@@ -39,17 +39,23 @@ echo "Pushing commit and tag..."
 git push
 git push origin "$TAG"
 
+# Deterministic codename for this tag — used in both the title and (via
+# get_env in cliff.toml) the generated notes.
+RELEASE_CODENAME="$(cargo run --quiet --manifest-path tools/codename/Cargo.toml -- "$TAG")"
+export RELEASE_CODENAME
+TITLE="$TAG \"$RELEASE_CODENAME\""
+
 # Build release notes from the changelog (git-cliff), grouped by commit type.
 # Fall back to GitHub's auto-notes if git-cliff produces nothing.
-echo "Creating GitHub release ${TAG}..."
+echo "Creating GitHub release ${TAG} (${RELEASE_CODENAME})..."
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 git-cliff --current --strip header --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true
 
 if [ -s "$NOTES_FILE" ]; then
-  gh release create "$TAG" "$DMG" --title "$TAG" --notes-file "$NOTES_FILE"
+  gh release create "$TAG" "$DMG" --title "$TITLE" --notes-file "$NOTES_FILE"
 else
-  gh release create "$TAG" "$DMG" --title "$TAG" --generate-notes
+  gh release create "$TAG" "$DMG" --title "$TITLE" --generate-notes
 fi
 
 echo "Released $TAG."
