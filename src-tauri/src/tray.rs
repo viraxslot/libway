@@ -29,9 +29,13 @@ pub struct TrayState(pub Mutex<Option<TrayIcon<Wry>>>);
 const ID_CHECK_NOW: &str = "check_now";
 const ID_MARK_ALL: &str = "mark_all_seen";
 const ID_SETTINGS: &str = "settings";
+const ID_ABOUT_GITHUB: &str = "about_github";
 const ID_QUIT: &str = "quit";
 // Repo items use the prefix "repo:" followed by the numeric id.
 const REPO_PREFIX: &str = "repo:";
+
+/// Project repository, opened from the About submenu.
+const REPO_URL: &str = "https://github.com/viraxslot/libway";
 
 /// Tray icon bytes embedded at compile time.
 const ICON_IDLE: &[u8] = include_bytes!("../icons/tray.png");
@@ -183,10 +187,35 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
         None::<&str>,
     )?)?;
     menu.append(&MenuItem::with_id(app, ID_SETTINGS, "Settings…", true, None::<&str>)?)?;
+    menu.append(&about_submenu(app)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?)?;
 
     Ok(menu)
+}
+
+/// "About" submenu: version, authors and a link to the repository.
+fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
+    let about = Submenu::with_id(app, "about", "About", true)?;
+
+    let version = format!("libway v{}", env!("CARGO_PKG_VERSION"));
+    about.append(&MenuItem::with_id(app, "about_version", version, false, None::<&str>)?)?;
+    about.append(&MenuItem::with_id(
+        app,
+        "about_authors",
+        "By Alexander Vershinin & Claude",
+        false,
+        None::<&str>,
+    )?)?;
+    about.append(&PredefinedMenuItem::separator(app)?)?;
+    about.append(&MenuItem::with_id(
+        app,
+        ID_ABOUT_GITHUB,
+        "View on GitHub",
+        true,
+        None::<&str>,
+    )?)?;
+    Ok(about)
 }
 
 /// Append a tag group as a submenu: "tag (count) ●", containing its repos.
@@ -210,6 +239,11 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         ID_QUIT => app.exit(0),
         ID_SETTINGS => open_settings(app),
         ID_MARK_ALL => mark_all(app),
+        ID_ABOUT_GITHUB => {
+            if let Err(e) = app.opener().open_url(REPO_URL, None::<&str>) {
+                eprintln!("libway: failed to open repo url: {e:#}");
+            }
+        }
         ID_CHECK_NOW => {
             // Run the check off the UI thread; refresh happens inside check_all.
             // Notify the result so the manual action isn't silent.
