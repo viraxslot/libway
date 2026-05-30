@@ -27,7 +27,7 @@ echo "Building .dmg for ${TAG}..."
 # tauri.conf.json, which produces a valid signature and avoids the "app is
 # damaged" error. Downloaders still clear the quarantine (see notes footer).
 # CI=true keeps the dmg step non-interactive (no Finder layout window).
-CI=true bun run tauri build -- --bundles dmg
+CI=true bun run tauri build --bundles dmg
 
 DMG="$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
 if [ -z "$DMG" ]; then

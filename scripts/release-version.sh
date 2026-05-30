@@ -40,7 +40,7 @@ cargo update -p libway --manifest-path src-tauri/Cargo.toml >/dev/null 2>&1 || t
 # scripts/changelog.sh derives each release's codename from its own version.
 bash scripts/changelog.sh --tag "v$VERSION"
 
-git add package.json bun.lock src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
 git commit -m "chore(release): v$VERSION"
 git tag "v$VERSION"
 
