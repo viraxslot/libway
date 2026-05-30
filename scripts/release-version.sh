@@ -12,7 +12,7 @@ fi
 
 # Require a clean working tree so the release commit is just the bump.
 if [ -n "$(git status --porcelain)" ]; then
-  echo "Working tree is not clean — commit or stash changes first." >&2
+  echo "Working tree is not clean - commit or stash changes first." >&2
   exit 1
 fi
 

@@ -12,7 +12,7 @@ bash scripts/check-versions.sh
 
 # The tag must exist (created by release-version.sh).
 if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG not found — run 'npm run release:version' first." >&2
+  echo "Tag $TAG not found - run 'npm run release:version' first." >&2
   exit 1
 fi
 
@@ -22,7 +22,7 @@ if ! command -v gh >/dev/null; then
   exit 1
 fi
 
-echo "Building .dmg for ${TAG}…"
+echo "Building .dmg for ${TAG}..."
 # CI=true makes the DMG step non-interactive: it skips the AppleScript that
 # opens a Finder window to lay out the drag-to-Applications view.
 CI=true npm run tauri build -- --bundles dmg
@@ -35,13 +35,13 @@ fi
 echo "Built $DMG"
 
 # Push the release commit and tag.
-echo "Pushing commit and tag…"
+echo "Pushing commit and tag..."
 git push
 git push origin "$TAG"
 
 # Build release notes from the changelog (git-cliff), grouped by commit type.
 # Fall back to GitHub's auto-notes if git-cliff produces nothing.
-echo "Creating GitHub release ${TAG}…"
+echo "Creating GitHub release ${TAG}..."
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 git-cliff --current --strip header --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true

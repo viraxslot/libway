@@ -15,7 +15,7 @@ if [ -z "$TAG" ]; then
 fi
 
 HEAD_SHA="$(git rev-parse --short HEAD)"
-echo "Moving tag $TAG to $HEAD_SHA…"
+echo "Moving tag ${TAG} to ${HEAD_SHA}..."
 
 # Recreate the tag locally on HEAD.
 git tag -f "$TAG"

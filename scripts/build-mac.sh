@@ -11,7 +11,7 @@ SRC="src-tauri/target/release/bundle/macos/${APP_NAME}"
 # so make sure all three files agree before building.
 bash scripts/check-versions.sh
 
-echo "Building release bundle…"
+echo "Building release bundle..."
 npm run tauri build
 
 if [ ! -d "$SRC" ]; then

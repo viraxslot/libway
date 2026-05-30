@@ -14,7 +14,7 @@ npm run build:mac
 pkill -f "${APP_NAME}/Contents/MacOS/libway" 2>/dev/null || true
 sleep 1
 
-echo "Installing to ${DEST}…"
+echo "Installing to ${DEST}..."
 rm -rf "$DEST"
 cp -R "$SRC" "$DEST"
 
