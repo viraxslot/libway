@@ -2,19 +2,23 @@ import { useEffect, useState } from "react";
 import {
   getCheckInterval,
   getCheckOnStartup,
+  getCheckSelfUpdate,
   setCheckInterval,
   setCheckOnStartup,
+  setCheckSelfUpdate,
 } from "@/api";
 import Button from "@/components/ui/Button/Button";
 import Checkbox from "@/components/ui/Checkbox/Checkbox";
 import Input from "@/components/ui/Input/Input";
 
-/** Editable check interval in minutes plus the "check on startup" toggle. */
-export default function IntervalSettings() {
+/** Update-check settings: the interval, "check on startup", and the
+ * "check for app updates" toggle. */
+export default function UpdateSettings() {
   const [value, setValue] = useState("");
   const [saved, setSaved] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [onStartup, setOnStartup] = useState(true);
+  const [selfUpdate, setSelfUpdate] = useState(true);
 
   useEffect(() => {
     getCheckInterval()
@@ -25,6 +29,9 @@ export default function IntervalSettings() {
       .catch(() => {});
     getCheckOnStartup()
       .then(setOnStartup)
+      .catch(() => {});
+    getCheckSelfUpdate()
+      .then(setSelfUpdate)
       .catch(() => {});
   }, []);
 
@@ -49,6 +56,12 @@ export default function IntervalSettings() {
     const next = !onStartup;
     await setCheckOnStartup(next);
     setOnStartup(next);
+  }
+
+  async function toggleSelfUpdate() {
+    const next = !selfUpdate;
+    await setCheckSelfUpdate(next);
+    setSelfUpdate(next);
   }
 
   return (
@@ -76,6 +89,11 @@ export default function IntervalSettings() {
         checked={onStartup}
         onChange={toggleOnStartup}
         label="Check on startup"
+      />
+      <Checkbox
+        checked={selfUpdate}
+        onChange={toggleSelfUpdate}
+        label="Check for app updates"
       />
     </section>
   );

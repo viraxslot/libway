@@ -11,6 +11,7 @@ mod keychain;
 mod migrations;
 mod notify;
 mod scheduler;
+mod selfupdate;
 mod tray;
 mod util;
 mod version;
@@ -48,6 +49,8 @@ pub fn run() {
             commands::set_check_interval,
             commands::get_check_on_startup,
             commands::set_check_on_startup,
+            commands::get_check_self_update,
+            commands::set_check_self_update,
             // GitHub token (Keychain)
             commands::has_token,
             commands::set_token,
@@ -76,6 +79,9 @@ fn init_app(app: &mut App) -> Result<(), Box<dyn Error>> {
 
     // The production GitHub client. Tests replace this with a fake.
     app.manage(Box::new(github::RealGitHub::new()) as Box<dyn github::GitHubApi>);
+
+    // Holds the currently-known available self-update (if any), for the tray.
+    app.manage(selfupdate::SelfUpdate::empty());
 
     // Ask for notification permission up front (macOS shows nothing otherwise).
     notify::ensure_permission(app.handle());

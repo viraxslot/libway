@@ -12,7 +12,7 @@
 
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::checker;
 use crate::db::{self, Db};
@@ -109,14 +109,21 @@ pub fn spawn(app: &AppHandle) {
     });
 }
 
-/// Run one check over all repositories, logging (not propagating) failures so
-/// the loop keeps running.
+/// Run one check over all repositories plus libway's own self-update, logging
+/// (not propagating) failures so the loop keeps running.
 async fn run_check(app: &AppHandle) {
     let db = app.state::<Db>();
     let client = app.state::<Box<dyn crate::github::GitHubApi>>();
+
     if let Err(e) = checker::check_all(app, &db, client.inner().as_ref()).await {
         eprintln!("libway: scheduled check failed: {e:#}");
     }
+
+    // Self-update state changes outside the DB, so emit a refresh afterwards so
+    // the tray reflects a newly-found (or cleared) update. `check_all` already
+    // emitted once for repo changes; this final emit covers the self-update.
+    crate::selfupdate::check(app, &db, client.inner().as_ref()).await;
+    let _ = app.emit(crate::events::Event::ReposUpdated.as_str(), ());
 }
 
 #[cfg(test)]

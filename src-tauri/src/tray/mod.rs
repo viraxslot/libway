@@ -19,6 +19,7 @@ use tauri::{
 
 use crate::db::{self, Db};
 use crate::events::Event;
+use crate::selfupdate::SelfUpdate;
 
 mod events;
 mod menu;
@@ -28,6 +29,7 @@ pub struct TrayState(pub Mutex<Option<TrayIcon<Wry>>>);
 
 // Stable ids for the fixed menu items, shared between `menu` (which builds
 // them) and `events` (which routes their clicks).
+pub(super) const ID_SELF_UPDATE: &str = "self_update";
 pub(super) const ID_CHECK_NOW: &str = "check_now";
 pub(super) const ID_MARK_ALL: &str = "mark_all_seen";
 pub(super) const ID_SETTINGS: &str = "settings";
@@ -75,7 +77,8 @@ pub fn refresh(app: &AppHandle, db: &Db) -> Result<()> {
     let (repos, any_unseen) =
         db.with(|c| Ok::<_, anyhow::Error>((db::list_repos(c)?, db::any_unseen(c)?)))?;
 
-    let menu = menu::build_menu(app, &repos, any_unseen)?;
+    let update = app.state::<SelfUpdate>().get();
+    let menu = menu::build_menu(app, &repos, any_unseen, update.as_ref())?;
 
     let state = app.state::<TrayState>();
     let guard = state.0.lock().unwrap();

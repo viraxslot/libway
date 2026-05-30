@@ -3,7 +3,9 @@
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_opener::OpenerExt;
 
-use super::{ID_ABOUT_GITHUB, ID_CHECK_NOW, ID_MARK_ALL, ID_QUIT, ID_SETTINGS, REPO_PREFIX};
+use super::{
+    ID_ABOUT_GITHUB, ID_CHECK_NOW, ID_MARK_ALL, ID_QUIT, ID_SELF_UPDATE, ID_SETTINGS, REPO_PREFIX,
+};
 use crate::db::{self, Db};
 use crate::events::Event;
 
@@ -21,6 +23,13 @@ pub(super) fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) 
         ID_ABOUT_GITHUB => {
             if let Err(e) = app.opener().open_url(REPO_URL, None::<&str>) {
                 eprintln!("libway: failed to open repo url: {e:#}");
+            }
+        }
+        ID_SELF_UPDATE => {
+            if let Some(update) = app.state::<crate::selfupdate::SelfUpdate>().get() {
+                if let Err(e) = app.opener().open_url(update.url, None::<&str>) {
+                    eprintln!("libway: failed to open update url: {e:#}");
+                }
             }
         }
         ID_CHECK_NOW => {

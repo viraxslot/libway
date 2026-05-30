@@ -6,7 +6,9 @@ use tauri::{
     AppHandle, Wry,
 };
 
-use super::{ID_ABOUT_GITHUB, ID_CHECK_NOW, ID_MARK_ALL, ID_QUIT, ID_SETTINGS, REPO_PREFIX};
+use super::{
+    ID_ABOUT_GITHUB, ID_CHECK_NOW, ID_MARK_ALL, ID_QUIT, ID_SELF_UPDATE, ID_SETTINGS, REPO_PREFIX,
+};
 use crate::db::Repo;
 use crate::util::now;
 
@@ -185,14 +187,30 @@ fn about_node() -> MenuNode {
     }
 }
 
-/// Describe the whole tray menu as plain data: status line, the repository
-/// section, then the actions. Pure and unit-testable — no Tauri handle.
-fn build_menu_model(repos: &[Repo], any_unseen: bool) -> Vec<MenuNode> {
-    let mut nodes = vec![
+/// Describe the whole tray menu as plain data: an optional update notice, the
+/// status line, the repository section, then the actions. Pure and
+/// unit-testable — no Tauri handle.
+fn build_menu_model(
+    repos: &[Repo],
+    any_unseen: bool,
+    update: Option<&crate::selfupdate::AvailableUpdate>,
+) -> Vec<MenuNode> {
+    let mut nodes = Vec::new();
+
+    if let Some(update) = update {
+        nodes.push(MenuNode::item(
+            ID_SELF_UPDATE,
+            format!("↗ Update available: {}", update.version),
+            true,
+        ));
+        nodes.push(MenuNode::Separator);
+    }
+
+    nodes.extend([
         // Status line (disabled = non-clickable).
         MenuNode::item("status", status_label(repos), false),
         MenuNode::Separator,
-    ];
+    ]);
 
     nodes.extend(repo_section(repos));
 
@@ -211,9 +229,14 @@ fn build_menu_model(repos: &[Repo], any_unseen: bool) -> Vec<MenuNode> {
 }
 
 /// Build the native tray menu from the repository list.
-pub(super) fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<Wry>> {
+pub(super) fn build_menu(
+    app: &AppHandle,
+    repos: &[Repo],
+    any_unseen: bool,
+    update: Option<&crate::selfupdate::AvailableUpdate>,
+) -> Result<Menu<Wry>> {
     let menu = Menu::new(app)?;
-    for node in build_menu_model(repos, any_unseen) {
+    for node in build_menu_model(repos, any_unseen, update) {
         menu.append(&render_node(app, &node)?)?;
     }
     Ok(menu)
@@ -420,7 +443,7 @@ mod tests {
     #[test]
     fn build_menu_model_has_expected_skeleton() {
         let repos = vec![Repo::sample("o", "a")];
-        let model = build_menu_model(&repos, false);
+        let model = build_menu_model(&repos, false, None);
 
         assert_eq!(
             ids(&model),
@@ -444,17 +467,43 @@ mod tests {
         let repos = vec![Repo::sample("o", "a")];
 
         // The "Mark all as read" item is enabled exactly when any_unseen is set.
-        let disabled = build_menu_model(&repos, false);
+        let disabled = build_menu_model(&repos, false, None);
         assert_eq!(
             find(&disabled, ID_MARK_ALL),
             &MenuNode::item(ID_MARK_ALL, "Mark all as read", false)
         );
 
-        let enabled = build_menu_model(&repos, true);
+        let enabled = build_menu_model(&repos, true, None);
         assert_eq!(
             find(&enabled, ID_MARK_ALL),
             &MenuNode::item(ID_MARK_ALL, "Mark all as read", true)
         );
+    }
+
+    #[test]
+    fn build_menu_model_prepends_update_item_when_present() {
+        let repos = vec![Repo::sample("o", "a")];
+        let update = crate::selfupdate::AvailableUpdate {
+            version: "v0.4.0".into(),
+            url: "https://github.com/viraxslot/libway/releases/tag/v0.4.0".into(),
+        };
+        let model = build_menu_model(&repos, false, Some(&update));
+
+        assert_eq!(model[0].id(), ID_SELF_UPDATE);
+        assert_eq!(
+            &model[0],
+            &MenuNode::item(ID_SELF_UPDATE, "↗ Update available: v0.4.0", true)
+        );
+        assert_eq!(model[1].id(), "---");
+        assert_eq!(model[2].id(), "status");
+    }
+
+    #[test]
+    fn build_menu_model_omits_update_item_when_absent() {
+        let repos = vec![Repo::sample("o", "a")];
+        let model = build_menu_model(&repos, false, None);
+        assert_eq!(model[0].id(), "status");
+        assert!(model.iter().all(|n| n.id() != ID_SELF_UPDATE));
     }
 
     #[test]

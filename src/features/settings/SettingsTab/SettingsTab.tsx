@@ -1,13 +1,13 @@
 import AutostartSettings from "@/features/settings/AutostartSettings/AutostartSettings";
-import IntervalSettings from "@/features/settings/IntervalSettings/IntervalSettings";
 import TokenSettings from "@/features/settings/TokenSettings/TokenSettings";
+import UpdateSettings from "@/features/settings/UpdateSettings/UpdateSettings";
 
-/** Settings tab: token, check interval / startup, autostart. */
+/** Settings tab: token, update checks (interval / startup / app updates), autostart. */
 export default function SettingsTab() {
   return (
     <div className="tab-panel">
       <TokenSettings />
-      <IntervalSettings />
+      <UpdateSettings />
       <AutostartSettings />
     </div>
   );

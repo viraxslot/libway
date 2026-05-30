@@ -64,6 +64,14 @@ export function setCheckOnStartup(enabled: boolean): Promise<void> {
   return invoke("set_check_on_startup", { enabled });
 }
 
+export function getCheckSelfUpdate(): Promise<boolean> {
+  return invoke<boolean>("get_check_self_update");
+}
+
+export function setCheckSelfUpdate(enabled: boolean): Promise<void> {
+  return invoke("set_check_self_update", { enabled });
+}
+
 // --- GitHub token (stored in the Keychain) ---
 
 export function hasToken(): Promise<boolean> {
