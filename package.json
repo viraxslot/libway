@@ -24,6 +24,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:rust:e2e": "cargo test --manifest-path src-tauri/Cargo.toml e2e_",
     "prepare": "husky"
   },
   "dependencies": {
