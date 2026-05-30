@@ -22,7 +22,7 @@ if ! command -v gh >/dev/null; then
   exit 1
 fi
 
-echo "Building .dmg for $TAG…"
+echo "Building .dmg for ${TAG}…"
 npm run tauri build -- --bundles dmg
 
 DMG="$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
@@ -38,7 +38,7 @@ git push
 git push origin "$TAG"
 
 # Create the GitHub release with auto-generated notes and the .dmg attached.
-echo "Creating GitHub release $TAG…"
+echo "Creating GitHub release ${TAG}…"
 gh release create "$TAG" "$DMG" --title "$TAG" --generate-notes
 
 echo "Released $TAG."
