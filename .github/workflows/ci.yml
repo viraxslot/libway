@@ -79,4 +79,19 @@ jobs:
         run: cargo build --locked
 
       - name: Test
-        run: cargo test --lib
+        run: |
+          set -o pipefail
+          cargo test --lib 2>&1 | tee test-output.txt
+
+      # cargo test prints to the log but, unlike vitest, writes nothing to the
+      # run Summary. Mirror the result there so both jobs report side by side.
+      - name: Report test results
+        if: always()
+        run: |
+          {
+            echo "### Backend tests"
+            echo
+            echo '```'
+            grep -E '^test result:' test-output.txt || echo "no test result captured"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
