@@ -7,13 +7,8 @@ APP_NAME="libway.app"
 SRC="src-tauri/target/release/bundle/macos/${APP_NAME}"
 DEST="/Applications/${APP_NAME}"
 
-echo "Building release bundle…"
-npm run tauri build
-
-if [ ! -d "$SRC" ]; then
-  echo "Build did not produce $SRC" >&2
-  exit 1
-fi
+# Reuse the build script so the bundling logic lives in one place.
+npm run build:mac
 
 # Quit a running instance so we can replace it cleanly.
 pkill -f "${APP_NAME}/Contents/MacOS/libway" 2>/dev/null || true

@@ -40,6 +40,7 @@ src-tauri/src/
   scheduler.rs      background checking loop
   tray.rs           tray menu and indicator
   notify.rs         native notifications
+scripts/build-mac.sh     build the .app (no install)
 scripts/install-mac.sh   build the .app and install it into /Applications
 ```
 
@@ -80,10 +81,12 @@ with Biome and runs the Rust tests, and a commit-msg hook enforces
 [Conventional Commits](https://www.conventionalcommits.org) via commitlint
 (e.g. `feat: …`, `fix: …`, `chore: …`).
 
-Build and install into /Applications (so Spotlight and autostart find it):
+Build the `.app` (without installing), or build and install it into
+/Applications (so Spotlight and autostart find it):
 
 ```bash
-npm run install:mac
+npm run build:mac      # builds the .app, prints its path
+npm run install:mac    # builds and copies it into /Applications
 ```
 
 ## Releasing
