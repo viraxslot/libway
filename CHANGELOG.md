@@ -1,4 +1,14 @@
-## [0.1.0] - 2026-05-30
+## [0.2.0] "Radiant Yak" - 2026-05-30
+
+### 🚀 Features
+
+- Add tag manager tab for bulk rename/delete/merge
+
+### 🐛 Bug Fixes
+
+- Give each release its own changelog codename
+
+## [0.1.0] "Bright Viper" - 2026-05-30
 
 ### 🚀 Features
 
@@ -10,6 +20,7 @@
 - Launch the app after install:mac
 - Normal-color About info and a link indicator
 - Add retag script to move a tag onto HEAD
+- Add release codenames via a tiny Rust generator
 
 ### 🐛 Bug Fixes
 
@@ -24,6 +35,7 @@
 - Build the release DMG non-interactively
 - Use git-cliff changelog as the GitHub release notes
 - Use ASCII in script messages to avoid unbound-variable errors
+- Ad-hoc sign the app via signingIdentity to avoid "damaged" error
 
 ### 🚜 Refactor
 
@@ -35,6 +47,7 @@
 - Update README for tags, tray grouping and migrations
 - Document tray About, build:mac and version check in README
 - Regenerate CHANGELOG.md
+- Regenerate CHANGELOG.md under the 0.1.0 release
 
 ### ⚙️ Miscellaneous Tasks
 
