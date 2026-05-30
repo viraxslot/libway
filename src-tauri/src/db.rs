@@ -129,9 +129,9 @@ fn row_to_repo(row: &rusqlite::Row) -> rusqlite::Result<Repo> {
 const REPO_COLUMNS: &str = "id, owner, name, latest_version, latest_url, source_kind, \
      has_unseen, last_checked_at, tags";
 
-/// All repositories in insertion order.
+/// All repositories, most recently added first.
 pub fn list_repos(conn: &Connection) -> Result<Vec<Repo>> {
-    let sql = format!("SELECT {REPO_COLUMNS} FROM repos ORDER BY created_at, id");
+    let sql = format!("SELECT {REPO_COLUMNS} FROM repos ORDER BY created_at DESC, id DESC");
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt.query_map([], row_to_repo)?;
     let mut repos = Vec::new();
@@ -319,8 +319,9 @@ mod tests {
 
         let repos = list_repos(&c).unwrap();
         assert_eq!(repos.len(), 2);
-        assert_eq!(repos[0].owner, "cli"); // ordered by created_at
-        assert_eq!(repos[1].name, "ripgrep");
+        // Most recently added first (ripgrep has the larger created_at).
+        assert_eq!(repos[0].name, "ripgrep");
+        assert_eq!(repos[1].owner, "cli");
         assert!(!repos[0].has_unseen);
         assert!(repos[0].latest_version.is_none());
 
@@ -421,9 +422,10 @@ mod tests {
 
         let n = rename_tag(&c, "build", "ci").unwrap();
         assert_eq!(n, 1);
+        // Most recently added first: b (created_at=2) precedes a (created_at=1).
         let repos = list_repos(&c).unwrap();
-        assert_eq!(repos[0].tags, vec!["ci"]); // a: build -> ci
-        assert_eq!(repos[1].tags, vec!["editors"]); // b untouched
+        assert_eq!(repos[0].tags, vec!["editors"]); // b untouched
+        assert_eq!(repos[1].tags, vec!["ci"]); // a: build -> ci
     }
 
     #[test]
@@ -476,9 +478,10 @@ mod tests {
 
         let n = delete_tag(&c, "build").unwrap();
         assert_eq!(n, 2); // matched on both repos, case-insensitively
+        // Most recently added first: b (created_at=2) precedes a (created_at=1).
         let repos = list_repos(&c).unwrap();
-        assert_eq!(repos[0].tags, vec!["ci"]);
-        assert!(repos[1].tags.is_empty());
+        assert!(repos[0].tags.is_empty()); // b: Build deleted
+        assert_eq!(repos[1].tags, vec!["ci"]); // a: build deleted, ci kept
     }
 
     #[test]
