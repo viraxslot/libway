@@ -1,5 +1,12 @@
 # Project guidelines for Claude
 
+## Comments
+
+Add comments sparingly — only where the logic is genuinely non-obvious (a
+subtle invariant, a workaround, a non-local constraint, a "why" that the code
+can't express). Do not add comments that merely restate what the code already
+says. Prefer clear names and structure over explanatory prose.
+
 ## Git
 
 Always ask for explicit confirmation before running any git operation that

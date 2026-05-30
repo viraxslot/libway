@@ -2,9 +2,11 @@
 
 use tauri::{AppHandle, Emitter, State};
 
-use super::{e, now};
+use super::e;
 use crate::db::{self, Db, Repo};
+use crate::events::Event;
 use crate::github;
+use crate::util::now;
 
 /// Parse an "owner/name" string into its two parts.
 fn parse_full_name(input: &str) -> Result<(String, String), String> {
@@ -46,7 +48,7 @@ pub async fn add_repo<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::add_repo(&conn, &owner, &name, now()).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)?;
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -61,7 +63,7 @@ pub fn remove_repo<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::remove_repo(&conn, id).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)?;
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -77,7 +79,7 @@ pub fn set_repo_tags<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::set_repo_tags(&conn, id, &tags).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)?;
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -93,7 +95,7 @@ pub fn rename_tag<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::rename_tag(&conn, &from, &to).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)?;
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -108,7 +110,7 @@ pub fn delete_tag<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::delete_tag(&conn, &tag).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)?;
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -123,7 +125,7 @@ pub fn mark_seen<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::mark_seen(&conn, id).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)
 }
 
 #[tauri::command]
@@ -135,7 +137,7 @@ pub fn mark_all_seen<R: tauri::Runtime>(
         let conn = db.0.lock().unwrap();
         db::mark_all_seen(&conn).map_err(e)?;
     }
-    app.emit("repos-updated", ()).map_err(e)
+    app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)
 }
 
 #[cfg(test)]

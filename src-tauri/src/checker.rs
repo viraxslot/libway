@@ -5,21 +5,13 @@
 //! and on a newer version updates the database, fires a notification, and
 //! refreshes the tray. Returns the list of repos that got a new version.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use anyhow::Result;
 use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::db::{self, Db, Repo};
+use crate::events::Event;
+use crate::util::now;
 use crate::{github, notify};
-
-/// Current unix time in seconds.
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
 
 /// Run a check over all tracked repositories.
 ///
@@ -74,7 +66,7 @@ pub async fn check_all<R: Runtime>(
     }
 
     // Let an open settings window reload its list. The tray refreshes via the
-    // `repos-updated` listener registered in `tray::create`.
-    let _ = app.emit("repos-updated", ());
+    // `repos:updated` listener registered in `tray::create`.
+    let _ = app.emit(Event::ReposUpdated.as_str(), ());
     Ok(updated)
 }

@@ -4,12 +4,14 @@
 mod checker;
 pub mod commands;
 pub mod db;
+pub mod events;
 pub mod github;
 mod keychain;
 mod migrations;
 mod notify;
 mod scheduler;
 mod tray;
+mod util;
 
 use tauri::{Manager, WindowEvent};
 

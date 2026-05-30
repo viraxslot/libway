@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use common::FakeGitHub;
 use libway_lib::db::{self as dbmod, Db, SourceKind};
+use libway_lib::events::Event;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Value};
 use tauri::{Listener, Manager};
@@ -126,12 +127,12 @@ fn e2e_repos_mutating_command_emits_repos_updated() {
     let app = common::build_app();
     let window = common::main_window(&app);
 
-    // Count `repos-updated` events. This is the contract that lets the tray
+    // Count `repos:updated` events. This is the contract that lets the tray
     // and other windows react to a change without the command knowing about
     // them — the whole point of decoupling commands from the tray.
     let count = Arc::new(AtomicUsize::new(0));
     let counter = count.clone();
-    app.listen("repos-updated", move |_event| {
+    app.listen(Event::ReposUpdated.as_str(), move |_event| {
         counter.fetch_add(1, Ordering::SeqCst);
     });
 
@@ -142,7 +143,7 @@ fn e2e_repos_mutating_command_emits_repos_updated() {
     assert_eq!(
         count.load(Ordering::SeqCst),
         0,
-        "list_repos must not emit repos-updated"
+        "list_repos must not emit repos:updated"
     );
 
     // A mutating command emits exactly one event.
@@ -151,7 +152,7 @@ fn e2e_repos_mutating_command_emits_repos_updated() {
     assert_eq!(
         count.load(Ordering::SeqCst),
         1,
-        "remove_repo must emit exactly one repos-updated"
+        "remove_repo must emit exactly one repos:updated"
     );
 }
 

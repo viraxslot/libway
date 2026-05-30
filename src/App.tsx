@@ -14,6 +14,7 @@ import {
 import Button from "@/components/ui/Button/Button";
 import Tab from "@/components/ui/Tab/Tab";
 import Tabs from "@/components/ui/Tabs/Tabs";
+import { EVENTS } from "@/events";
 import RepositoriesTab from "@/features/repos/RepositoriesTab/RepositoriesTab";
 import SettingsTab from "@/features/settings/SettingsTab/SettingsTab";
 import TagsTab from "@/features/tags/TagsTab/TagsTab";
@@ -33,7 +34,7 @@ export default function App() {
   // Initial load + subscribe to backend-driven updates (scheduler runs).
   useEffect(() => {
     reload();
-    const unlisten = listen("repos-updated", () => {
+    const unlisten = listen(EVENTS.reposUpdated, () => {
       reload();
     });
     return () => {

@@ -7,6 +7,7 @@
 
 use async_trait::async_trait;
 use libway_lib::db::{self, Db, SourceKind};
+use libway_lib::events::Event;
 use libway_lib::github::{GitHubApi, LatestVersion};
 use serde_json::Value;
 use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
@@ -40,9 +41,9 @@ pub fn build_app() -> App<Runtime> {
     let db = Db::open_in_memory().expect("failed to open in-memory db");
     app.manage(db);
 
-    // Keep a no-op listener so emitted `repos-updated` events have a sink,
+    // Keep a no-op listener so emitted `repos:updated` events have a sink,
     // mirroring production where the tray listens.
-    app.listen("repos-updated", |_event| {});
+    app.listen(Event::ReposUpdated.as_str(), |_event| {});
 
     app
 }

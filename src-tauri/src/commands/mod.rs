@@ -7,8 +7,6 @@
 //! system) and re-exported here so callers keep referring to them as
 //! `commands::<name>` — this keeps the `generate_handler!` lists unchanged.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 mod repos;
 mod settings;
 mod system;
@@ -22,11 +20,4 @@ pub use token::*;
 /// Map any error into a String for the frontend.
 pub(crate) fn e<E: std::fmt::Display>(err: E) -> String {
     err.to_string()
-}
-
-pub(crate) fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
 }
