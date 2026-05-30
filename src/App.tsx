@@ -101,7 +101,7 @@ export default function App() {
         </div>
       </header>
 
-      <Tabs value={tab} onChange={(v) => setTab(v as TabId)}>
+      <Tabs value={tab} onChange={setTab}>
         <Tab value="repositories">Repositories</Tab>
         <Tab value="tags">Tags</Tab>
         <Tab value="settings">Settings</Tab>
