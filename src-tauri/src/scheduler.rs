@@ -49,44 +49,74 @@ pub fn check_on_startup(db: &Db) -> bool {
         .unwrap_or(DEFAULT_CHECK_ON_STARTUP)
 }
 
+/// Tracks when the next check is due, by accumulating elapsed seconds against
+/// the interval. Pure timer state — no clock, no DB — so it is unit-testable.
+struct Schedule {
+    /// Seconds elapsed since the last completed check.
+    elapsed: u64,
+    /// Whether a check is due now.
+    due: bool,
+}
+
+impl Schedule {
+    /// `run_on_startup` makes the very first check due immediately.
+    fn new(run_on_startup: bool) -> Self {
+        Schedule {
+            elapsed: 0,
+            due: run_on_startup,
+        }
+    }
+
+    fn is_due(&self) -> bool {
+        self.due
+    }
+
+    /// Record that a check just ran: reset the timer.
+    fn mark_ran(&mut self) {
+        self.elapsed = 0;
+        self.due = false;
+    }
+
+    /// Advance by `tick` seconds; a check becomes due once `interval_secs` has
+    /// accumulated. The interval is passed each tick so changes from the UI
+    /// apply promptly.
+    fn advance(&mut self, tick: u64, interval_secs: u64) {
+        self.elapsed += tick;
+        if self.elapsed >= interval_secs {
+            self.due = true;
+        }
+    }
+}
+
 /// Spawn the background checking loop.
 pub fn spawn(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_secs(STARTUP_DELAY_SECS)).await;
 
-        // Seconds elapsed since the last completed check.
-        let mut elapsed: u64 = 0;
-        // Whether a check is due now (immediately on startup if configured).
-        let mut due = {
-            let db = app.state::<Db>();
-            check_on_startup(&db)
-        };
+        let mut schedule = Schedule::new(check_on_startup(&app.state::<Db>()));
 
         loop {
-            if due {
-                let db = app.state::<Db>();
-                let client = app.state::<Box<dyn crate::github::GitHubApi>>();
-                if let Err(e) = checker::check_all(&app, &db, client.inner().as_ref()).await {
-                    eprintln!("libway: scheduled check failed: {e:#}");
-                }
-                elapsed = 0;
-                due = false;
+            if schedule.is_due() {
+                run_check(&app).await;
+                schedule.mark_ran();
             }
 
             tokio::time::sleep(Duration::from_secs(TICK_SECS)).await;
-            elapsed += TICK_SECS;
-
-            // Re-read the interval every tick so UI changes apply promptly.
-            let interval_secs = {
-                let db = app.state::<Db>();
-                interval_minutes(&db) * 60
-            };
-            if elapsed >= interval_secs {
-                due = true;
-            }
+            let interval_secs = interval_minutes(&app.state::<Db>()) * 60;
+            schedule.advance(TICK_SECS, interval_secs);
         }
     });
+}
+
+/// Run one check over all repositories, logging (not propagating) failures so
+/// the loop keeps running.
+async fn run_check(app: &AppHandle) {
+    let db = app.state::<Db>();
+    let client = app.state::<Box<dyn crate::github::GitHubApi>>();
+    if let Err(e) = checker::check_all(app, &db, client.inner().as_ref()).await {
+        eprintln!("libway: scheduled check failed: {e:#}");
+    }
 }
 
 #[cfg(test)]
@@ -147,5 +177,48 @@ mod tests {
         // Anything other than "1" is treated as false.
         set(&db, SETTING_CHECK_ON_STARTUP, "yes");
         assert!(!check_on_startup(&db));
+    }
+
+    #[test]
+    fn schedule_due_on_startup_only_when_enabled() {
+        assert!(Schedule::new(true).is_due());
+        assert!(!Schedule::new(false).is_due());
+    }
+
+    #[test]
+    fn schedule_becomes_due_after_interval_elapses() {
+        let mut s = Schedule::new(false);
+        // 120s interval, 5s ticks: not due until the interval is reached.
+        s.advance(5, 120);
+        assert!(!s.is_due());
+        for _ in 0..22 {
+            s.advance(5, 120); // 10s..115s
+        }
+        assert!(!s.is_due(), "still under 120s at 115s");
+        s.advance(5, 120); // 120s
+        assert!(s.is_due());
+    }
+
+    #[test]
+    fn schedule_mark_ran_resets_timer() {
+        let mut s = Schedule::new(true);
+        s.advance(5, 10);
+        s.mark_ran();
+        assert!(!s.is_due());
+        // After reset it takes another full interval to come due again.
+        s.advance(5, 10);
+        assert!(!s.is_due());
+        s.advance(5, 10);
+        assert!(s.is_due());
+    }
+
+    #[test]
+    fn schedule_picks_up_shortened_interval() {
+        let mut s = Schedule::new(false);
+        s.advance(60, 600); // 60s elapsed against a 10-minute interval
+        assert!(!s.is_due());
+        // Interval shortened from the UI to 60s: the next tick sees it due.
+        s.advance(5, 60);
+        assert!(s.is_due());
     }
 }
