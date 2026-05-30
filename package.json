@@ -20,6 +20,8 @@
     "retag": "bash scripts/retag.sh",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "prepare": "husky"
   },
@@ -40,12 +42,19 @@
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@tauri-apps/cli": "^2.11.2",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "typescript": "^6.0.3",
-    "vite": "^8.0.14"
-  }
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  },
+  "packageManager": "bun@1.3.14"
 }
