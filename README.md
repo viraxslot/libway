@@ -54,31 +54,31 @@ Token: Keychain, service `libway`, account `github-token`.
 
 ## Prerequisites
 
-- **Node 24+** and **Rust 1.96+**, plus the Xcode Command Line Tools.
+- **Bun 1.3+** and **Rust 1.96+**, plus the Xcode Command Line Tools.
 - Both toolchains are pinned via [`mise`](https://mise.jdx.dev) (`mise.toml`);
-  the Node version is additionally enforced by `engines` in `package.json`.
+  the Bun version is additionally enforced by `engines` in `package.json`.
 
 ```bash
-mise install          # installs the pinned Node (24), Rust (1.96), git-cliff
-# without mise: ensure `node -v` >= 24 and `rustc --version` >= 1.96
+mise install          # installs the pinned Bun (1.3), Rust (1.96), git-cliff
+# without mise: ensure `bun -v` >= 1.3 and `rustc --version` >= 1.96
 ```
 
 ## Development
 
 ```bash
-npm install
-npm run tauri dev      # run in dev mode (window + tray)
+bun install
+bun run tauri dev      # run in dev mode (window + tray)
 ```
 
 Note: native notifications only work from a built `.app`, not from
-`npm run tauri dev` (macOS does not register the unsigned dev binary). The
+`bun run tauri dev` (macOS does not register the unsigned dev binary). The
 tray and the window work in dev; use a build to test notifications.
 
 Lint/format (Biome) and Rust tests:
 
 ```bash
-npm run lint           # biome check src  (lint:fix to autofix)
-npm run test:rust      # cargo test
+bun run lint           # biome check src  (lint:fix to autofix)
+bun run test:rust      # cargo test
 ```
 
 Git hooks (husky) run automatically: a pre-commit hook formats staged files
@@ -90,21 +90,21 @@ Build the `.app` (without installing), or build and install it into
 /Applications (so Spotlight and autostart find it):
 
 ```bash
-npm run build:mac      # builds the .app, prints its path
-npm run install:mac    # builds and copies it into /Applications
+bun run build:mac      # builds the .app, prints its path
+bun run install:mac    # builds and copies it into /Applications
 ```
 
 ## Releasing
 
 ```bash
-npm run release:version -- patch   # or minor | major | X.Y.Z
-npm run release:publish
+bun run release:version patch   # or minor | major | X.Y.Z
+bun run release:publish
 ```
 
 `release:version` bumps the version in package.json, tauri.conf.json and
 Cargo.toml, regenerates `CHANGELOG.md` from the Conventional Commits with
 [git-cliff](https://git-cliff.org), then commits and tags it. Run
-`npm run changelog` to regenerate it manually. `release:publish` builds a `.dmg`,
+`bun run changelog` to regenerate it manually. `release:publish` builds a `.dmg`,
 pushes the commit and tag, and creates a GitHub release whose notes are the
 git-cliff changelog for that tag (requires the `gh` CLI). The `.dmg` is
 unsigned, so first launch needs right-click → Open to get past Gatekeeper.
@@ -113,13 +113,13 @@ If a tag was created a few commits early, move it onto the current HEAD
 (locally and on the remote) before publishing:
 
 ```bash
-npm run retag              # moves the current version's tag (vX.Y.Z)
-npm run retag -- v0.1.0    # moves a specific tag
+bun run retag              # moves the current version's tag (vX.Y.Z)
+bun run retag v0.1.0       # moves a specific tag
 ```
 
 The version must stay in sync across those three files (the tray's About
 reads it from Cargo.toml). `build:mac` and `release:publish` verify this
-automatically; run `npm run check:versions` to check manually.
+automatically; run `bun run check:versions` to check manually.
 
 ## GitHub token
 

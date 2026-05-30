@@ -17,7 +17,7 @@ cargo build --quiet --release --manifest-path tools/codename/Cargo.toml
 CODENAME_BIN="tools/codename/target/release/codename-gen"
 
 git-cliff "$@" -x \
-  | node scripts/changelog-codenames.mjs "$CODENAME_BIN" \
+  | bun scripts/changelog-codenames.mjs "$CODENAME_BIN" \
   | git-cliff --from-context - --output CHANGELOG.md
 
 # Collapse the trailing blank line left by the inter-release spacing so the

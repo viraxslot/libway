@@ -3,15 +3,15 @@
 # release tag was created a few commits early and needs to catch up.
 #
 # Usage:
-#   npm run retag                 # moves the current version's tag (vX.Y.Z)
-#   npm run retag -- v0.1.0       # moves the given tag
+#   bun run retag                 # moves the current version's tag (vX.Y.Z)
+#   bun run retag v0.1.0          # moves the given tag
 #
 # Force-updates only the tag (never the branch). Push the branch separately.
 set -euo pipefail
 
 TAG="${1:-}"
 if [ -z "$TAG" ]; then
-  TAG="v$(node -p "require('./package.json').version")"
+  TAG="v$(bun -e "console.log(require('./package.json').version)")"
 fi
 
 HEAD_SHA="$(git rev-parse --short HEAD)"

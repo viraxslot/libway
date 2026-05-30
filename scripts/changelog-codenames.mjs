@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Enrich a git-cliff JSON context (read from stdin) with a per-release codename
 // and write it back to stdout. Each release's codename is derived from its own
 // version via the codename-gen binary, so regenerating the whole changelog is
 // deterministic and never overwrites an older release's name.
 //
 // Usage (in a pipeline):
-//   git-cliff -x --tag vX.Y.Z | node scripts/changelog-codenames.mjs <codename-gen> | git-cliff --from-context -
+//   git-cliff -x --tag vX.Y.Z | bun scripts/changelog-codenames.mjs <codename-gen> | git-cliff --from-context -
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Bump the app version across package.json, tauri.conf.json and Cargo.toml,
 # regenerate CHANGELOG.md, then commit and tag it. Usage:
-#   npm run release:version -- patch | minor | major | X.Y.Z
+#   bun run release:version patch | minor | major | X.Y.Z
 set -euo pipefail
 
 BUMP="${1:-}"
 if [ -z "$BUMP" ]; then
-  echo "Usage: npm run release:version -- <patch|minor|major|X.Y.Z>" >&2
+  echo "Usage: bun run release:version <patch|minor|major|X.Y.Z>" >&2
   exit 1
 fi
 
@@ -17,12 +17,12 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 # Bump package.json (no git tag yet) and capture the resulting version.
-npm version "$BUMP" --no-git-tag-version >/dev/null
-VERSION="$(node -p "require('./package.json').version")"
+bun pm version "$BUMP" --no-git-tag-version >/dev/null
+VERSION="$(bun -e "console.log(require('./package.json').version)")"
 echo "New version: $VERSION"
 
 # Mirror the version into the Tauri config and the Rust crate.
-node -e "
+bun -e "
   const fs = require('fs');
   const p = 'src-tauri/tauri.conf.json';
   const c = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -40,9 +40,9 @@ cargo update -p libway --manifest-path src-tauri/Cargo.toml >/dev/null 2>&1 || t
 # scripts/changelog.sh derives each release's codename from its own version.
 bash scripts/changelog.sh --tag "v$VERSION"
 
-git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
+git add package.json bun.lock src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
 git commit -m "chore(release): v$VERSION"
 git tag "v$VERSION"
 
 echo "Committed and tagged v$VERSION."
-echo "Next: npm run release:publish"
+echo "Next: bun run release:publish"

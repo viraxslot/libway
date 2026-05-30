@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build a .dmg and publish a GitHub release for the current version tag.
-# Run after `npm run release:version`. Usage: npm run release:publish
+# Run after `bun run release:version`. Usage: bun run release:publish
 set -euo pipefail
 
-VERSION="$(node -p "require('./package.json').version")"
+VERSION="$(bun -e "console.log(require('./package.json').version)")"
 TAG="v$VERSION"
 
 # Fail early if the version isn't in sync across the three files (the binary
@@ -12,7 +12,7 @@ bash scripts/check-versions.sh
 
 # The tag must exist (created by release-version.sh).
 if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG not found - run 'npm run release:version' first." >&2
+  echo "Tag $TAG not found - run 'bun run release:version' first." >&2
   exit 1
 fi
 
@@ -27,7 +27,7 @@ echo "Building .dmg for ${TAG}..."
 # tauri.conf.json, which produces a valid signature and avoids the "app is
 # damaged" error. Downloaders still clear the quarantine (see notes footer).
 # CI=true keeps the dmg step non-interactive (no Finder layout window).
-CI=true npm run tauri build -- --bundles dmg
+CI=true bun run tauri build -- --bundles dmg
 
 DMG="$(ls -t src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null | head -1)"
 if [ -z "$DMG" ]; then
@@ -57,7 +57,7 @@ echo "Creating GitHub release ${TAG} (${RELEASE_CODENAME})..."
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
 git-cliff --current --tag "$TAG" -x 2>/dev/null \
-  | node scripts/changelog-codenames.mjs "$CODENAME_BIN" \
+  | bun scripts/changelog-codenames.mjs "$CODENAME_BIN" \
   | git-cliff --from-context - --strip header > "$NOTES_FILE" 2>/dev/null || true
 
 if [ -s "$NOTES_FILE" ]; then
