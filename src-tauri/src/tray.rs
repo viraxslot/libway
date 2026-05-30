@@ -198,22 +198,26 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
 fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
     let about = Submenu::with_id(app, "about", "About", true)?;
 
+    // Version and authors are informational; enabled so they show in the
+    // normal text color rather than a dimmed/disabled gray. Clicking them is
+    // a no-op (no handler).
     let version = format!("libway v{}", env!("CARGO_PKG_VERSION"));
-    about.append(&MenuItem::with_id(app, "about_version", version, false, None::<&str>)?)?;
+    about.append(&MenuItem::with_id(app, "about_version", version, true, None::<&str>)?)?;
     about.append(&MenuItem::with_id(
         app,
         "about_authors",
         // "&&" renders as a literal "&"; a single "&" is treated as a
         // mnemonic accelerator by the native menu and would be hidden.
         "By Alexander Vershinin && Claude",
-        false,
+        true,
         None::<&str>,
     )?)?;
     about.append(&PredefinedMenuItem::separator(app)?)?;
+    // The leading ↗ hints that this opens an external page.
     about.append(&MenuItem::with_id(
         app,
         ID_ABOUT_GITHUB,
-        "View on GitHub",
+        "↗ View on GitHub",
         true,
         None::<&str>,
     )?)?;
