@@ -6,6 +6,7 @@ mod commands;
 mod db;
 mod github;
 mod keychain;
+mod migrations;
 mod notify;
 mod scheduler;
 mod tray;

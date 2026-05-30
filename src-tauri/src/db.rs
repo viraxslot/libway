@@ -102,69 +102,10 @@ impl Db {
     }
 }
 
-/// Ordered schema migrations. Each entry is applied once, in order; the
-/// database's `PRAGMA user_version` tracks how many have run. To evolve the
-/// schema, append a new SQL string here — never edit or reorder existing ones.
-const MIGRATIONS: &[&str] = &[
-    // v1 — initial schema. Uses IF NOT EXISTS so databases created before
-    // this migration system (which used CREATE TABLE IF NOT EXISTS and left
-    // user_version at 0) migrate cleanly instead of erroring on existing tables.
-    r#"
-    CREATE TABLE IF NOT EXISTS repos (
-        id              INTEGER PRIMARY KEY,
-        owner           TEXT NOT NULL,
-        name            TEXT NOT NULL,
-        latest_version  TEXT,
-        latest_url      TEXT,
-        source_kind     TEXT,
-        has_unseen      INTEGER NOT NULL DEFAULT 0,
-        last_checked_at INTEGER,
-        created_at      INTEGER NOT NULL,
-        UNIQUE(owner, name)
-    );
-    CREATE TABLE IF NOT EXISTS settings (
-        key   TEXT PRIMARY KEY,
-        value TEXT
-    );
-    "#,
-    // v2 — per-repo tags for grouping. Guarded against pre-migration databases
-    // that may already have the column from the earlier ad-hoc migration.
-    r#"
-    ALTER TABLE repos ADD COLUMN tags TEXT NOT NULL DEFAULT '';
-    "#,
-];
-
-/// Whether an error is SQLite's "duplicate column name" (already-applied
-/// `ADD COLUMN` from a pre-migration database).
-fn is_duplicate_column(err: &rusqlite::Error) -> bool {
-    err.to_string().contains("duplicate column name")
-}
-
-/// Apply any migrations the database hasn't seen yet, tracked via
-/// `PRAGMA user_version`. Runs each pending migration in its own transaction.
+/// Apply the schema to a fresh or existing connection.
+/// Migration definitions live in `crate::migrations`.
 fn init_schema(conn: &Connection) -> Result<()> {
-    let current: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    let target = MIGRATIONS.len() as i64;
-
-    for version in current..target {
-        let sql = MIGRATIONS[version as usize];
-        // DDL statements (CREATE/ALTER) auto-commit in SQLite, so no explicit
-        // transaction is needed around a single migration.
-        match conn.execute_batch(sql) {
-            Ok(()) => {}
-            // Tolerate a column that an earlier ad-hoc migration already added,
-            // so databases from before this system converge cleanly.
-            Err(ref err) if is_duplicate_column(err) => {}
-            Err(err) => {
-                return Err(anyhow::Error::new(err)
-                    .context(format!("migration {} failed", version + 1)));
-            }
-        }
-        // user_version doesn't accept bound params; the value is our own i64.
-        conn.execute_batch(&format!("PRAGMA user_version = {};", version + 1))
-            .with_context(|| format!("failed to record migration {}", version + 1))?;
-    }
-    Ok(())
+    crate::migrations::run(conn)
 }
 
 /// Map a result row into a `Repo`.
@@ -353,26 +294,6 @@ mod tests {
         // Clearing tags works.
         set_repo_tags(&c, id, &[]).unwrap();
         assert!(list_repos(&c).unwrap()[0].tags.is_empty());
-    }
-
-    #[test]
-    fn migrations_set_user_version() {
-        let db = Db::open_in_memory().unwrap();
-        let c = conn(&db);
-        let v: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
-        assert_eq!(v, MIGRATIONS.len() as i64);
-    }
-
-    #[test]
-    fn migrations_are_idempotent() {
-        // Running init_schema again on an up-to-date DB is a no-op.
-        let db = Db::open_in_memory().unwrap();
-        let c = conn(&db);
-        init_schema(&c).unwrap();
-        init_schema(&c).unwrap();
-        // The schema is still usable.
-        add_repo(&c, "cli", "cli", 1).unwrap();
-        assert_eq!(list_repos(&c).unwrap().len(), 1);
     }
 
     #[test]
