@@ -126,11 +126,62 @@ input[type="password"] {
 
 .repo-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 10px;
   background: var(--row);
   border-radius: 8px;
+}
+
+.repo-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Tags */
+.repo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 1px 4px 1px 8px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.chip-remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chip-remove:hover {
+  color: var(--badge);
+}
+
+.tag-input {
+  font: inherit;
+  font-size: 11px;
+  width: 64px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--fg);
 }
 
 .repo-main {

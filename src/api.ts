@@ -17,6 +17,11 @@ export function removeRepo(id: number): Promise<Repo[]> {
   return invoke<Repo[]>("remove_repo", { id });
 }
 
+/** Replace a repo's tags. Returns the updated list. */
+export function setRepoTags(id: number, tags: string[]): Promise<Repo[]> {
+  return invoke<Repo[]>("set_repo_tags", { id, tags });
+}
+
 export function markSeen(id: number): Promise<void> {
   return invoke("mark_seen", { id });
 }

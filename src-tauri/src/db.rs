@@ -52,6 +52,29 @@ pub struct Repo {
     pub source_kind: Option<SourceKind>,
     pub has_unseen: bool,
     pub last_checked_at: Option<i64>,
+    /// User-assigned tags for grouping (stored as a comma-separated string).
+    pub tags: Vec<String>,
+}
+
+/// Serialize tags into the comma-separated form stored in the DB.
+/// Tags are trimmed, lowercased, de-duplicated and sorted for stability.
+fn join_tags(tags: &[String]) -> String {
+    let mut cleaned: Vec<String> = tags
+        .iter()
+        .map(|t| t.trim().to_lowercase())
+        .filter(|t| !t.is_empty())
+        .collect();
+    cleaned.sort();
+    cleaned.dedup();
+    cleaned.join(",")
+}
+
+/// Parse the comma-separated tag string from the DB into a list.
+fn split_tags(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect()
 }
 
 /// Wrapper around the SQLite connection for storage in `tauri::State`.
@@ -79,29 +102,68 @@ impl Db {
     }
 }
 
-fn init_schema(conn: &Connection) -> Result<()> {
-    conn.execute_batch(
-        r#"
-        CREATE TABLE IF NOT EXISTS repos (
-            id              INTEGER PRIMARY KEY,
-            owner           TEXT NOT NULL,
-            name            TEXT NOT NULL,
-            latest_version  TEXT,
-            latest_url      TEXT,
-            source_kind     TEXT,
-            has_unseen      INTEGER NOT NULL DEFAULT 0,
-            last_checked_at INTEGER,
-            created_at      INTEGER NOT NULL,
-            UNIQUE(owner, name)
-        );
+/// Ordered schema migrations. Each entry is applied once, in order; the
+/// database's `PRAGMA user_version` tracks how many have run. To evolve the
+/// schema, append a new SQL string here — never edit or reorder existing ones.
+const MIGRATIONS: &[&str] = &[
+    // v1 — initial schema. Uses IF NOT EXISTS so databases created before
+    // this migration system (which used CREATE TABLE IF NOT EXISTS and left
+    // user_version at 0) migrate cleanly instead of erroring on existing tables.
+    r#"
+    CREATE TABLE IF NOT EXISTS repos (
+        id              INTEGER PRIMARY KEY,
+        owner           TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        latest_version  TEXT,
+        latest_url      TEXT,
+        source_kind     TEXT,
+        has_unseen      INTEGER NOT NULL DEFAULT 0,
+        last_checked_at INTEGER,
+        created_at      INTEGER NOT NULL,
+        UNIQUE(owner, name)
+    );
+    CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT
+    );
+    "#,
+    // v2 — per-repo tags for grouping. Guarded against pre-migration databases
+    // that may already have the column from the earlier ad-hoc migration.
+    r#"
+    ALTER TABLE repos ADD COLUMN tags TEXT NOT NULL DEFAULT '';
+    "#,
+];
 
-        CREATE TABLE IF NOT EXISTS settings (
-            key   TEXT PRIMARY KEY,
-            value TEXT
-        );
-        "#,
-    )
-    .context("failed to apply database schema")?;
+/// Whether an error is SQLite's "duplicate column name" (already-applied
+/// `ADD COLUMN` from a pre-migration database).
+fn is_duplicate_column(err: &rusqlite::Error) -> bool {
+    err.to_string().contains("duplicate column name")
+}
+
+/// Apply any migrations the database hasn't seen yet, tracked via
+/// `PRAGMA user_version`. Runs each pending migration in its own transaction.
+fn init_schema(conn: &Connection) -> Result<()> {
+    let current: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    let target = MIGRATIONS.len() as i64;
+
+    for version in current..target {
+        let sql = MIGRATIONS[version as usize];
+        // DDL statements (CREATE/ALTER) auto-commit in SQLite, so no explicit
+        // transaction is needed around a single migration.
+        match conn.execute_batch(sql) {
+            Ok(()) => {}
+            // Tolerate a column that an earlier ad-hoc migration already added,
+            // so databases from before this system converge cleanly.
+            Err(ref err) if is_duplicate_column(err) => {}
+            Err(err) => {
+                return Err(anyhow::Error::new(err)
+                    .context(format!("migration {} failed", version + 1)));
+            }
+        }
+        // user_version doesn't accept bound params; the value is our own i64.
+        conn.execute_batch(&format!("PRAGMA user_version = {};", version + 1))
+            .with_context(|| format!("failed to record migration {}", version + 1))?;
+    }
     Ok(())
 }
 
@@ -117,11 +179,12 @@ fn row_to_repo(row: &rusqlite::Row) -> rusqlite::Result<Repo> {
         source_kind: source_kind.as_deref().and_then(SourceKind::from_str),
         has_unseen: row.get::<_, i64>("has_unseen")? != 0,
         last_checked_at: row.get("last_checked_at")?,
+        tags: split_tags(&row.get::<_, String>("tags")?),
     })
 }
 
-const REPO_COLUMNS: &str =
-    "id, owner, name, latest_version, latest_url, source_kind, has_unseen, last_checked_at";
+const REPO_COLUMNS: &str = "id, owner, name, latest_version, latest_url, source_kind, \
+     has_unseen, last_checked_at, tags";
 
 /// All repositories in insertion order.
 pub fn list_repos(conn: &Connection) -> Result<Vec<Repo>> {
@@ -149,6 +212,15 @@ pub fn add_repo(conn: &Connection, owner: &str, name: &str, now: i64) -> Result<
 /// Remove a repository by id.
 pub fn remove_repo(conn: &Connection, id: i64) -> Result<()> {
     conn.execute("DELETE FROM repos WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+/// Replace the tags of a repository.
+pub fn set_repo_tags(conn: &Connection, id: i64, tags: &[String]) -> Result<()> {
+    conn.execute(
+        "UPDATE repos SET tags = ?1 WHERE id = ?2",
+        params![join_tags(tags), id],
+    )?;
     Ok(())
 }
 
@@ -254,6 +326,52 @@ mod tests {
         assert!(repos[0].latest_version.is_none());
 
         remove_repo(&c, id).unwrap();
+        assert_eq!(list_repos(&c).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn tags_are_normalized_and_roundtrip() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let id = add_repo(&c, "cli", "cli", 1).unwrap();
+        assert!(list_repos(&c).unwrap()[0].tags.is_empty());
+
+        // Mixed case, blanks, duplicates and whitespace get cleaned up.
+        set_repo_tags(
+            &c,
+            id,
+            &[
+                " Editors ".to_string(),
+                "build".to_string(),
+                "build".to_string(),
+                "".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["build", "editors"]);
+
+        // Clearing tags works.
+        set_repo_tags(&c, id, &[]).unwrap();
+        assert!(list_repos(&c).unwrap()[0].tags.is_empty());
+    }
+
+    #[test]
+    fn migrations_set_user_version() {
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        let v: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+        assert_eq!(v, MIGRATIONS.len() as i64);
+    }
+
+    #[test]
+    fn migrations_are_idempotent() {
+        // Running init_schema again on an up-to-date DB is a no-op.
+        let db = Db::open_in_memory().unwrap();
+        let c = conn(&db);
+        init_schema(&c).unwrap();
+        init_schema(&c).unwrap();
+        // The schema is still usable.
+        add_repo(&c, "cli", "cli", 1).unwrap();
         assert_eq!(list_repos(&c).unwrap().len(), 1);
     }
 

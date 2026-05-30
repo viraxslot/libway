@@ -6,17 +6,21 @@
 //! back to "open release + mark seen".
 
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{TrayIcon, TrayIconBuilder},
     AppHandle, Emitter, Manager, Wry,
 };
 use tauri_plugin_opener::OpenerExt;
 
-use crate::db::{self, Db};
+use crate::db::{self, Db, Repo};
+
+/// Tag bucket name for repositories without any tags.
+const UNGROUPED: &str = "Ungrouped";
 
 /// Holds the tray icon handle so `refresh` can update it later.
 pub struct TrayState(pub Mutex<Option<TrayIcon<Wry>>>);
@@ -74,33 +78,102 @@ pub fn refresh(app: &AppHandle, db: &Db) -> Result<()> {
     Ok(())
 }
 
-/// Build the menu: one entry per repo, then Check now / Mark all as read /
-/// Settings / Quit.
-fn build_menu(app: &AppHandle, repos: &[db::Repo], any_unseen: bool) -> Result<Menu<Wry>> {
+/// Current unix time in seconds.
+fn now() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// A human "N minutes ago" string for a unix timestamp.
+fn relative_time(ts: i64) -> String {
+    let secs = (now() - ts).max(0);
+    if secs < 60 {
+        "just now".to_string()
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        format!("{}d ago", secs / 86400)
+    }
+}
+
+/// The non-clickable status line shown at the top of the menu.
+fn status_label(repos: &[Repo]) -> String {
+    let unseen = repos.iter().filter(|r| r.has_unseen).count();
+    let head = match unseen {
+        0 => "All up to date".to_string(),
+        1 => "1 update".to_string(),
+        n => format!("{n} updates"),
+    };
+    // Oldest successful check across repos, if any.
+    let last = repos.iter().filter_map(|r| r.last_checked_at).min();
+    match last {
+        Some(ts) => format!("{head} · checked {}", relative_time(ts)),
+        None => format!("{head} · not checked yet"),
+    }
+}
+
+/// Label for a single repository entry.
+fn repo_label(repo: &Repo) -> String {
+    let version = repo.latest_version.as_deref().unwrap_or("…");
+    let mark = if repo.has_unseen { " ●" } else { "" };
+    format!("{}/{}  {}{}", repo.owner, repo.name, version, mark)
+}
+
+/// Append one repository as a clickable item to a menu or submenu.
+fn append_repo(app: &AppHandle, menu: &Submenu<Wry>, repo: &Repo) -> Result<()> {
+    let id = format!("{REPO_PREFIX}{}", repo.id);
+    let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
+    menu.append(&item)?;
+    Ok(())
+}
+
+/// Collect the sorted set of distinct tags across all repos.
+fn distinct_tags(repos: &[Repo]) -> Vec<String> {
+    let mut tags: Vec<String> = repos.iter().flat_map(|r| r.tags.clone()).collect();
+    tags.sort();
+    tags.dedup();
+    tags
+}
+
+/// Build the menu: status line, the repositories (grouped by tag into
+/// submenus when any tags exist, otherwise a flat list), then the actions.
+fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<Wry>> {
     let menu = Menu::new(app)?;
+
+    // Status line (disabled = non-clickable).
+    let status = MenuItem::with_id(app, "status", status_label(repos), false, None::<&str>)?;
+    menu.append(&status)?;
+    menu.append(&PredefinedMenuItem::separator(app)?)?;
 
     if repos.is_empty() {
         let empty = MenuItem::with_id(app, "noop", "No repositories", false, None::<&str>)?;
         menu.append(&empty)?;
-    } else {
+    } else if distinct_tags(repos).is_empty() {
+        // No tags anywhere — keep a simple flat list.
         for repo in repos {
-            let version = repo.latest_version.as_deref().unwrap_or("…");
-            let mark = if repo.has_unseen { " ●" } else { "" };
-            let label = format!("{}/{}  {}{}", repo.owner, repo.name, version, mark);
             let id = format!("{REPO_PREFIX}{}", repo.id);
-            let item = MenuItem::with_id(app, id, label, true, None::<&str>)?;
+            let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
             menu.append(&item)?;
+        }
+    } else {
+        // One submenu per tag, plus an "Ungrouped" submenu for untagged repos.
+        for tag in distinct_tags(repos) {
+            let members: Vec<&Repo> =
+                repos.iter().filter(|r| r.tags.contains(&tag)).collect();
+            append_group(app, &menu, &tag, &members)?;
+        }
+        let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
+        if !untagged.is_empty() {
+            append_group(app, &menu, UNGROUPED, &untagged)?;
         }
     }
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_CHECK_NOW,
-        "Check now",
-        true,
-        None::<&str>,
-    )?)?;
+    menu.append(&MenuItem::with_id(app, ID_CHECK_NOW, "Check now", true, None::<&str>)?)?;
     // Enabled only when there is something to clear.
     menu.append(&MenuItem::with_id(
         app,
@@ -109,23 +182,24 @@ fn build_menu(app: &AppHandle, repos: &[db::Repo], any_unseen: bool) -> Result<M
         any_unseen,
         None::<&str>,
     )?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_SETTINGS,
-        "Settings…",
-        true,
-        None::<&str>,
-    )?)?;
+    menu.append(&MenuItem::with_id(app, ID_SETTINGS, "Settings…", true, None::<&str>)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_QUIT,
-        "Quit",
-        true,
-        None::<&str>,
-    )?)?;
+    menu.append(&MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?)?;
 
     Ok(menu)
+}
+
+/// Append a tag group as a submenu: "tag (count) ●", containing its repos.
+fn append_group(app: &AppHandle, menu: &Menu<Wry>, tag: &str, members: &[&Repo]) -> Result<()> {
+    let unseen = members.iter().any(|r| r.has_unseen);
+    let mark = if unseen { " ●" } else { "" };
+    let label = format!("{tag} ({}){mark}", members.len());
+    let submenu = Submenu::with_id(app, format!("group:{tag}"), label, true)?;
+    for repo in members {
+        append_repo(app, &submenu, repo)?;
+    }
+    menu.append(&submenu)?;
+    Ok(())
 }
 
 /// Route a menu click to the right action.

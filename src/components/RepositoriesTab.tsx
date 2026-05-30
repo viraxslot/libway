@@ -9,6 +9,7 @@ interface Props {
   onAdd: (fullName: string) => Promise<void>;
   onRemove: (id: number) => void;
   onSeen: (id: number) => void;
+  onSetTags: (id: number, tags: string[]) => void;
 }
 
 /** Repositories tab: add form, search filter, and the tracked list. */
@@ -17,6 +18,7 @@ export default function RepositoriesTab({
   onAdd,
   onRemove,
   onSeen,
+  onSetTags,
 }: Props) {
   const [query, setQuery] = useState("");
   // The repo pending deletion confirmation, or null.
@@ -25,7 +27,12 @@ export default function RepositoriesTab({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return repos;
-    return repos.filter((r) => repoFullName(r).toLowerCase().includes(q));
+    // Match against the full name and any tag.
+    return repos.filter(
+      (r) =>
+        repoFullName(r).toLowerCase().includes(q) ||
+        r.tags.some((t) => t.includes(q)),
+    );
   }, [repos, query]);
 
   function confirmDelete() {
@@ -60,6 +67,7 @@ export default function RepositoriesTab({
             setPendingDelete(repos.find((r) => r.id === id) ?? null)
           }
           onSeen={onSeen}
+          onSetTags={onSetTags}
         />
       )}
 

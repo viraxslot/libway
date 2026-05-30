@@ -7,6 +7,7 @@ import {
   markAllSeen,
   markSeen,
   removeRepo,
+  setRepoTags,
 } from "./api";
 import RepositoriesTab from "./components/RepositoriesTab";
 import SettingsTab from "./components/SettingsTab";
@@ -45,6 +46,10 @@ export default function App() {
   async function handleSeen(id: number) {
     await markSeen(id);
     reload();
+  }
+
+  async function handleSetTags(id: number, tags: string[]) {
+    setRepos(await setRepoTags(id, tags));
   }
 
   async function handleCheckNow() {
@@ -105,6 +110,7 @@ export default function App() {
           onAdd={handleAdd}
           onRemove={handleRemove}
           onSeen={handleSeen}
+          onSetTags={handleSetTags}
         />
       ) : (
         <SettingsTab />

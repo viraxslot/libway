@@ -19,6 +19,8 @@ export interface Repo {
   hasUnseen: boolean;
   /** Unix time of the last successful check (seconds), or null. */
   lastCheckedAt: number | null;
+  /** User-assigned tags for grouping. */
+  tags: string[];
 }
 
 /** Full repository name "owner/name". */
