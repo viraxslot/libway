@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn add_list_remove() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
 
         let id = add_repo(&c, "cli", "cli", 100).unwrap();
         add_repo(&c, "BurntSushi", "ripgrep", 200).unwrap();
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn duplicate_repo_fails() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         add_repo(&c, "cli", "cli", 1).unwrap();
         assert!(add_repo(&c, "cli", "cli", 2).is_err());
     }
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn version_update_and_seen() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let id = add_repo(&c, "cli", "cli", 1).unwrap();
 
         update_version(
@@ -154,7 +154,7 @@ mod tests {
     #[test]
     fn mark_all_seen_clears_everything() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "a", "a", 1).unwrap();
         let b = add_repo(&c, "b", "b", 2).unwrap();
         update_version(&c, a, "1", "u", SourceKind::Tag, 5).unwrap();

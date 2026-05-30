@@ -32,8 +32,7 @@ const TICK_SECS: u64 = 5;
 
 /// Read the configured interval in minutes, falling back to the default.
 pub fn interval_minutes(db: &Db) -> u64 {
-    let conn = db.0.lock().unwrap();
-    db::get_setting(&conn, SETTING_INTERVAL)
+    db.with(|c| db::get_setting(c, SETTING_INTERVAL))
         .ok()
         .flatten()
         .and_then(|v| v.parse::<u64>().ok())
@@ -43,8 +42,7 @@ pub fn interval_minutes(db: &Db) -> u64 {
 
 /// Read whether to run a check immediately at startup.
 pub fn check_on_startup(db: &Db) -> bool {
-    let conn = db.0.lock().unwrap();
-    db::get_setting(&conn, SETTING_CHECK_ON_STARTUP)
+    db.with(|c| db::get_setting(c, SETTING_CHECK_ON_STARTUP))
         .ok()
         .flatten()
         .map(|v| v == "1")
@@ -98,8 +96,7 @@ mod tests {
     use super::*;
 
     fn set(db: &Db, key: &str, value: &str) {
-        let conn = db.0.lock().unwrap();
-        db::set_setting(&conn, key, value).unwrap();
+        db.with(|c| db::set_setting(c, key, value)).unwrap();
     }
 
     #[test]

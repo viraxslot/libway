@@ -23,8 +23,7 @@ fn parse_full_name(input: &str) -> Result<(String, String), String> {
 
 #[tauri::command]
 pub fn list_repos(db: State<'_, Db>) -> Result<Vec<Repo>, String> {
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -44,13 +43,10 @@ pub async fn add_repo<R: tauri::Runtime>(
         Err(err) => return Err(format!("could not verify {owner}/{name}: {err}")),
     }
 
-    {
-        let conn = db.0.lock().unwrap();
-        db::add_repo(&conn, &owner, &name, now()).map_err(e)?;
-    }
+    db.with(|c| db::add_repo(c, &owner, &name, now()))
+        .map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -59,13 +55,9 @@ pub fn remove_repo<R: tauri::Runtime>(
     db: State<'_, Db>,
     id: i64,
 ) -> Result<Vec<Repo>, String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::remove_repo(&conn, id).map_err(e)?;
-    }
+    db.with(|c| db::remove_repo(c, id)).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -75,13 +67,9 @@ pub fn set_repo_tags<R: tauri::Runtime>(
     id: i64,
     tags: Vec<String>,
 ) -> Result<Vec<Repo>, String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::set_repo_tags(&conn, id, &tags).map_err(e)?;
-    }
+    db.with(|c| db::set_repo_tags(c, id, &tags)).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -91,13 +79,9 @@ pub fn rename_tag<R: tauri::Runtime>(
     from: String,
     to: String,
 ) -> Result<Vec<Repo>, String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::rename_tag(&conn, &from, &to).map_err(e)?;
-    }
+    db.with(|c| db::rename_tag(c, &from, &to)).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -106,13 +90,9 @@ pub fn delete_tag<R: tauri::Runtime>(
     db: State<'_, Db>,
     tag: String,
 ) -> Result<Vec<Repo>, String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::delete_tag(&conn, &tag).map_err(e)?;
-    }
+    db.with(|c| db::delete_tag(c, &tag)).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)?;
-    let conn = db.0.lock().unwrap();
-    db::list_repos(&conn).map_err(e)
+    db.with(db::list_repos).map_err(e)
 }
 
 #[tauri::command]
@@ -121,10 +101,7 @@ pub fn mark_seen<R: tauri::Runtime>(
     db: State<'_, Db>,
     id: i64,
 ) -> Result<(), String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::mark_seen(&conn, id).map_err(e)?;
-    }
+    db.with(|c| db::mark_seen(c, id)).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)
 }
 
@@ -133,10 +110,7 @@ pub fn mark_all_seen<R: tauri::Runtime>(
     app: AppHandle<R>,
     db: State<'_, Db>,
 ) -> Result<(), String> {
-    {
-        let conn = db.0.lock().unwrap();
-        db::mark_all_seen(&conn).map_err(e)?;
-    }
+    db.with(db::mark_all_seen).map_err(e)?;
     app.emit(Event::ReposUpdated.as_str(), ()).map_err(e)
 }
 

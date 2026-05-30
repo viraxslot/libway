@@ -90,10 +90,24 @@ pub async fn repo_exists(owner: &str, name: &str, token: Option<&str>) -> Result
 pub async fn fetch_latest(owner: &str, name: &str, token: Option<&str>) -> Result<LatestVersion> {
     let client = client(token)?;
 
-    // 1) Try the stable release.
-    let rel_url = format!("{API_BASE}/repos/{owner}/{name}/releases/latest");
+    // Prefer the stable release; fall back to tags only when there are none.
+    match fetch_latest_release(&client, owner, name).await? {
+        Some(release) => Ok(release),
+        None => fetch_latest_tag(&client, owner, name).await,
+    }
+}
+
+/// Fetch the stable release. `Ok(None)` means GitHub returned 404 (no
+/// releases), so the caller should fall back to tags; other non-success codes
+/// are errors.
+async fn fetch_latest_release(
+    client: &reqwest::Client,
+    owner: &str,
+    name: &str,
+) -> Result<Option<LatestVersion>> {
+    let url = format!("{API_BASE}/repos/{owner}/{name}/releases/latest");
     let resp = client
-        .get(&rel_url)
+        .get(&url)
         .send()
         .await
         .with_context(|| format!("release request for {owner}/{name} failed"))?;
@@ -103,27 +117,34 @@ pub async fn fetch_latest(owner: &str, name: &str, token: Option<&str>) -> Resul
             .json()
             .await
             .context("failed to parse the release response")?;
-        return Ok(LatestVersion {
+        return Ok(Some(LatestVersion {
             version: r.tag_name,
             url: r.html_url,
             source_kind: SourceKind::Release,
-        });
+        }));
     }
 
-    // 404 — no releases, fall back to tags. Other codes are errors.
-    if resp.status() != reqwest::StatusCode::NOT_FOUND {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(anyhow!(
-            "GitHub returned {status} for {owner}/{name}: {}",
-            body.chars().take(200).collect::<String>()
-        ));
+    if resp.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
     }
 
-    // 2) Fall back to tags.
-    let tags_url = format!("{API_BASE}/repos/{owner}/{name}/tags?per_page=1");
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    Err(anyhow!(
+        "GitHub returned {status} for {owner}/{name}: {}",
+        body.chars().take(200).collect::<String>()
+    ))
+}
+
+/// Fetch the top tag, used when a repository publishes tags but no releases.
+async fn fetch_latest_tag(
+    client: &reqwest::Client,
+    owner: &str,
+    name: &str,
+) -> Result<LatestVersion> {
+    let url = format!("{API_BASE}/repos/{owner}/{name}/tags?per_page=1");
     let resp = client
-        .get(&tags_url)
+        .get(&url)
         .send()
         .await
         .with_context(|| format!("tags request for {owner}/{name} failed"))?;

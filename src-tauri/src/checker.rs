@@ -20,30 +20,28 @@ use crate::{github, notify};
 pub async fn check_all<R: Runtime>(
     app: &AppHandle<R>,
     db: &Db,
-    client: &dyn github::GitHubApi,
+    github_client: &dyn github::GitHubApi,
 ) -> Result<Vec<Repo>> {
-    let repos = {
-        let conn = db.0.lock().unwrap();
-        db::list_repos(&conn)?
-    };
+    let repos = db.with(db::list_repos)?;
 
     let mut updated = Vec::new();
 
     for repo in repos {
-        match client.fetch_latest(&repo.owner, &repo.name).await {
+        match github_client.fetch_latest(&repo.owner, &repo.name).await {
             Ok(latest) => {
                 let is_new = github::is_newer(&latest.version, repo.latest_version.as_deref());
                 let ts = now();
-                let conn = db.0.lock().unwrap();
                 if is_new {
-                    db::update_version(
-                        &conn,
-                        repo.id,
-                        &latest.version,
-                        &latest.url,
-                        latest.source_kind,
-                        ts,
-                    )?;
+                    db.with(|c| {
+                        db::update_version(
+                            c,
+                            repo.id,
+                            &latest.version,
+                            &latest.url,
+                            latest.source_kind,
+                            ts,
+                        )
+                    })?;
                     // Only notify when this is not the very first discovery,
                     // i.e. we already had a known version before.
                     if repo.latest_version.is_some() {
@@ -51,7 +49,7 @@ pub async fn check_all<R: Runtime>(
                     }
                     updated.push(repo);
                 } else {
-                    db::touch_checked(&conn, repo.id, ts)?;
+                    db.with(|c| db::touch_checked(c, repo.id, ts))?;
                 }
             }
             Err(e) => {

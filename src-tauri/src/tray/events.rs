@@ -49,13 +49,11 @@ pub(super) fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) 
 /// Open a repo's release page and clear its unseen flag.
 fn open_repo(app: &AppHandle, repo_id: i64) {
     let db = app.state::<Db>();
-    let url = {
-        let conn = db.0.lock().unwrap();
-        db::list_repos(&conn)
-            .ok()
-            .and_then(|repos| repos.into_iter().find(|r| r.id == repo_id))
-            .and_then(|r| r.latest_url)
-    };
+    let url = db
+        .with(db::list_repos)
+        .ok()
+        .and_then(|repos| repos.into_iter().find(|r| r.id == repo_id))
+        .and_then(|r| r.latest_url);
 
     if let Some(url) = url {
         if let Err(e) = app.opener().open_url(url, None::<&str>) {
@@ -63,10 +61,7 @@ fn open_repo(app: &AppHandle, repo_id: i64) {
         }
     }
 
-    {
-        let conn = db.0.lock().unwrap();
-        let _ = db::mark_seen(&conn, repo_id);
-    }
+    let _ = db.with(|c| db::mark_seen(c, repo_id));
     // Notify an open settings window since this change came from the tray.
     // The tray itself refreshes via the `repos:updated` listener.
     let _ = app.emit(Event::ReposUpdated.as_str(), ());
@@ -75,10 +70,7 @@ fn open_repo(app: &AppHandle, repo_id: i64) {
 /// Clear the unseen flag on all repos (the tray "Mark all as read" item).
 fn mark_all(app: &AppHandle) {
     let db = app.state::<Db>();
-    {
-        let conn = db.0.lock().unwrap();
-        let _ = db::mark_all_seen(&conn);
-    }
+    let _ = db.with(db::mark_all_seen);
     let _ = app.emit(Event::ReposUpdated.as_str(), ());
 }
 

@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn settings_roundtrip() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         assert!(get_setting(&c, "interval").unwrap().is_none());
         set_setting(&c, "interval", "10").unwrap();
         assert_eq!(get_setting(&c, "interval").unwrap().as_deref(), Some("10"));

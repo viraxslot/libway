@@ -28,7 +28,12 @@ pub use settings::*;
 pub use tags::*;
 
 /// Wrapper around the SQLite connection for storage in `tauri::State`.
-pub struct Db(pub Mutex<Connection>);
+///
+/// The connection is private; all access goes through [`Db::with`], which is
+/// the single place that takes the lock. Query logic lives in the topic
+/// submodules as `db::<fn>(conn, …)` free functions, invoked inside a `with`
+/// closure.
+pub struct Db(Mutex<Connection>);
 
 impl Db {
     /// Open the database at `path` and apply the schema.
@@ -49,6 +54,23 @@ impl Db {
         let conn = Connection::open_in_memory()?;
         init_schema(&conn)?;
         Ok(Db(Mutex::new(conn)))
+    }
+
+    /// Run `f` with the locked connection, holding the lock only for its
+    /// duration. The single place that takes the lock; panics only if another
+    /// thread panicked while holding it (a poisoned mutex), which we cannot
+    /// recover from.
+    pub fn with<T>(&self, f: impl FnOnce(&Connection) -> T) -> T {
+        let conn = self.0.lock().expect("db mutex poisoned");
+        f(&conn)
+    }
+
+    /// Lock the connection directly, for the topic submodules' own tests that
+    /// exercise the `conn`-based free functions. Not for production code —
+    /// take the lock once and reuse the guard across several queries.
+    #[cfg(test)]
+    pub(super) fn lock(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.0.lock().expect("db mutex poisoned")
     }
 }
 

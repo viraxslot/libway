@@ -126,14 +126,14 @@ pub fn invoke(window: &WebviewWindow<Runtime>, cmd: &str, args: Value) -> Result
 /// network and is out of scope). Returns the new row id.
 pub fn seed_repo(app: &App<Runtime>, owner: &str, name: &str, now: i64) -> i64 {
     let db = app.state::<Db>();
-    let conn = db.0.lock().unwrap();
-    db::add_repo(&conn, owner, name, now).expect("failed to seed repo")
+    db.with(|c| db::add_repo(c, owner, name, now))
+        .expect("failed to seed repo")
 }
 
 /// Seed tags on a repo directly through the managed Db.
 pub fn seed_tags(app: &App<Runtime>, id: i64, tags: &[&str]) {
     let db = app.state::<Db>();
-    let conn = db.0.lock().unwrap();
     let owned: Vec<String> = tags.iter().map(|t| t.to_string()).collect();
-    db::set_repo_tags(&conn, id, &owned).expect("failed to seed tags");
+    db.with(|c| db::set_repo_tags(c, id, &owned))
+        .expect("failed to seed tags");
 }

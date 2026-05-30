@@ -1,44 +1,22 @@
 //! Schema migrations for the SQLite database.
 //!
-//! Migrations are an ordered list of SQL strings. Each entry is applied once,
-//! in order; the database's `PRAGMA user_version` tracks how many have run.
+//! Migrations are an ordered list of SQL scripts, one per `.sql` file in this
+//! directory and embedded at compile time. Each entry is applied once, in
+//! order; the database's `PRAGMA user_version` tracks how many have run.
 //!
-//! To evolve the schema, APPEND a new SQL string to `MIGRATIONS` — never edit
-//! or reorder existing ones (the index is the version number). One logical
-//! migration = one entry; multiple statements per entry are fine (separated by
-//! `;`). DDL auto-commits in SQLite, so no explicit transaction is needed.
+//! To evolve the schema, ADD a new `NNN_name.sql` file and APPEND it to
+//! `MIGRATIONS` — never edit or reorder existing ones (the index is the version
+//! number). Multiple statements per file are fine (separated by `;`). DDL
+//! auto-commits in SQLite, so no explicit transaction is needed.
 
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 
-/// Ordered schema migrations; the array index is the version number.
+/// Ordered schema migrations; the array index is the version number. Each entry
+/// is the contents of the matching `.sql` file, embedded at compile time.
 const MIGRATIONS: &[&str] = &[
-    // v1 — initial schema. Uses IF NOT EXISTS so databases created before
-    // this migration system (which used CREATE TABLE IF NOT EXISTS and left
-    // user_version at 0) migrate cleanly instead of erroring on existing tables.
-    r#"
-    CREATE TABLE IF NOT EXISTS repos (
-        id              INTEGER PRIMARY KEY,
-        owner           TEXT NOT NULL,
-        name            TEXT NOT NULL,
-        latest_version  TEXT,
-        latest_url      TEXT,
-        source_kind     TEXT,
-        has_unseen      INTEGER NOT NULL DEFAULT 0,
-        last_checked_at INTEGER,
-        created_at      INTEGER NOT NULL,
-        UNIQUE(owner, name)
-    );
-    CREATE TABLE IF NOT EXISTS settings (
-        key   TEXT PRIMARY KEY,
-        value TEXT
-    );
-    "#,
-    // v2 — per-repo tags for grouping. Guarded against pre-migration databases
-    // that may already have the column from the earlier ad-hoc migration.
-    r#"
-    ALTER TABLE repos ADD COLUMN tags TEXT NOT NULL DEFAULT '';
-    "#,
+    include_str!("001_initial.sql"),
+    include_str!("002_repo_tags.sql"),
 ];
 
 /// Whether an error is SQLite's "duplicate column name" (already-applied

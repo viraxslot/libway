@@ -72,10 +72,8 @@ pub fn create(app: &AppHandle) -> Result<()> {
 
 /// Rebuild the tray menu and swap the icon based on current state.
 pub fn refresh(app: &AppHandle, db: &Db) -> Result<()> {
-    let (repos, any_unseen) = {
-        let conn = db.0.lock().unwrap();
-        (db::list_repos(&conn)?, db::any_unseen(&conn)?)
-    };
+    let (repos, any_unseen) =
+        db.with(|c| Ok::<_, anyhow::Error>((db::list_repos(c)?, db::any_unseen(c)?)))?;
 
     let menu = menu::build_menu(app, &repos, any_unseen)?;
 

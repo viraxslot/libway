@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn tags_are_normalized_and_roundtrip() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let id = add_repo(&c, "cli", "cli", 1).unwrap();
         assert!(list_repos(&c).unwrap()[0].tags.is_empty());
 
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn rename_tag_simple() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         let b = add_repo(&c, "o", "b", 2).unwrap();
         set_repo_tags(&c, a, &["build".to_string()]).unwrap();
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn rename_tag_merges_into_existing() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         // One repo carries both the source and the target tag.
         set_repo_tags(&c, a, &["build".to_string(), "ci".to_string()]).unwrap();
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn rename_tag_is_case_insensitive_and_keeps_new_case() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         set_repo_tags(&c, a, &["Build".to_string()]).unwrap();
 
@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn rename_tag_absent_is_noop() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         set_repo_tags(&c, a, &["build".to_string()]).unwrap();
 
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn delete_tag_removes_from_all() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         let b = add_repo(&c, "o", "b", 2).unwrap();
         set_repo_tags(&c, a, &["build".to_string(), "ci".to_string()]).unwrap();
@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn delete_tag_absent_is_noop() {
         let db = Db::open_in_memory().unwrap();
-        let c = db.0.lock().unwrap();
+        let c = db.lock();
         let a = add_repo(&c, "o", "a", 1).unwrap();
         set_repo_tags(&c, a, &["build".to_string()]).unwrap();
 

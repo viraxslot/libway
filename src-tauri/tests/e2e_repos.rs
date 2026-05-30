@@ -80,12 +80,9 @@ fn e2e_repos_mark_seen_clears_unseen() {
     let id = common::seed_repo(&app, "cli", "cli", 100);
 
     // Give it an unseen update directly (update_version sets has_unseen = 1).
-    {
-        let db = app.state::<Db>();
-        let conn = db.0.lock().unwrap();
-        dbmod::update_version(&conn, id, "v1.0.0", "https://x", SourceKind::Release, 5)
-            .expect("update_version");
-    }
+    app.state::<Db>()
+        .with(|c| dbmod::update_version(c, id, "v1.0.0", "https://x", SourceKind::Release, 5))
+        .expect("update_version");
 
     // Confirm it is unseen via list_repos.
     let before = common::invoke(&window, "list_repos", json!({})).unwrap();
@@ -107,12 +104,10 @@ fn e2e_repos_mark_all_seen_clears_every_repo() {
 
     let a = common::seed_repo(&app, "a", "a", 100);
     let b = common::seed_repo(&app, "b", "b", 200);
-    {
-        let db = app.state::<Db>();
-        let conn = db.0.lock().unwrap();
-        dbmod::update_version(&conn, a, "1", "u", SourceKind::Tag, 5).unwrap();
-        dbmod::update_version(&conn, b, "1", "u", SourceKind::Tag, 5).unwrap();
-    }
+    app.state::<Db>().with(|c| {
+        dbmod::update_version(c, a, "1", "u", SourceKind::Tag, 5).unwrap();
+        dbmod::update_version(c, b, "1", "u", SourceKind::Tag, 5).unwrap();
+    });
 
     common::invoke(&window, "mark_all_seen", json!({})).expect("mark_all_seen should succeed");
 
@@ -272,13 +267,11 @@ fn e2e_repos_check_now_with_same_version_keeps_repo_seen() {
     let id = common::seed_repo(&app, "o", "a", 100);
 
     // Seed the same version already seen, with a stale check timestamp.
-    {
-        let db = app.state::<Db>();
-        let conn = db.0.lock().unwrap();
-        dbmod::update_version(&conn, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
-        dbmod::mark_seen(&conn, id).unwrap();
-        dbmod::touch_checked(&conn, id, 5).unwrap();
-    }
+    app.state::<Db>().with(|c| {
+        dbmod::update_version(c, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
+        dbmod::mark_seen(c, id).unwrap();
+        dbmod::touch_checked(c, id, 5).unwrap();
+    });
 
     // The fake returns the same version → not a new version, so only the
     // last-checked timestamp should change.
@@ -314,12 +307,10 @@ fn e2e_repos_check_now_with_newer_version_flags_repo_unseen() {
     let id = common::seed_repo(&app, "o", "a", 100);
 
     // Known older version, already seen.
-    {
-        let db = app.state::<Db>();
-        let conn = db.0.lock().unwrap();
-        dbmod::update_version(&conn, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
-        dbmod::mark_seen(&conn, id).unwrap();
-    }
+    app.state::<Db>().with(|c| {
+        dbmod::update_version(c, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
+        dbmod::mark_seen(c, id).unwrap();
+    });
 
     common::invoke(&window, "check_now", json!({})).expect("check_now should succeed");
 

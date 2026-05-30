@@ -13,13 +13,8 @@ use crate::util::now;
 /// Tag bucket name for repositories without any tags.
 const UNGROUPED: &str = "Ungrouped";
 
-/// A human "N minutes ago" string for a unix timestamp.
-fn relative_time(ts: i64) -> String {
-    relative_time_from(now(), ts)
-}
-
-/// Pure core of [`relative_time`]: format `ts` relative to a given `now`.
-/// A future timestamp (clock skew) clamps to "just now".
+/// A human "N minutes ago" string for `ts` relative to `now` (both unix
+/// seconds). A future timestamp (clock skew) clamps to "just now".
 fn relative_time_from(now: i64, ts: i64) -> String {
     let secs = (now - ts).max(0);
     if secs < 60 {
@@ -41,11 +36,18 @@ fn status_label(repos: &[Repo]) -> String {
         1 => "1 update".to_string(),
         n => format!("{n} updates"),
     };
-    // Oldest successful check across repos, if any.
-    let last = repos.iter().filter_map(|r| r.last_checked_at).min();
+    // Most recent successful check across repos — "last activity".
+    let last = repos.iter().filter_map(|r| r.last_checked_at).max();
+    format!("{head} · {}", status_suffix(last, now()))
+}
+
+/// The "· checked …" / "· not checked yet" tail of the status line, given the
+/// most recent check timestamp (if any). Pure, so the min/max choice and
+/// wording stay testable without the clock.
+fn status_suffix(last: Option<i64>, now: i64) -> String {
     match last {
-        Some(ts) => format!("{head} · checked {}", relative_time(ts)),
-        None => format!("{head} · not checked yet"),
+        Some(ts) => format!("checked {}", relative_time_from(now, ts)),
+        None => "not checked yet".to_string(),
     }
 }
 
@@ -56,14 +58,6 @@ fn repo_label(repo: &Repo) -> String {
     format!("{}/{} — {}{}", repo.owner, repo.name, version, mark)
 }
 
-/// Append one repository as a clickable item to a menu or submenu.
-fn append_repo(app: &AppHandle, menu: &Submenu<Wry>, repo: &Repo) -> Result<()> {
-    let id = format!("{REPO_PREFIX}{}", repo.id);
-    let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
-    menu.append(&item)?;
-    Ok(())
-}
-
 /// Collect the sorted set of distinct tags across all repos.
 fn distinct_tags(repos: &[Repo]) -> Vec<String> {
     let mut tags: Vec<String> = repos.iter().flat_map(|r| r.tags.clone()).collect();
@@ -72,143 +66,182 @@ fn distinct_tags(repos: &[Repo]) -> Vec<String> {
     tags
 }
 
-/// Build the menu: status line, the repositories (grouped by tag into
-/// submenus when any tags exist, otherwise a flat list), then the actions.
-pub(super) fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<Wry>> {
-    let menu = Menu::new(app)?;
+/// A node in the tray menu, described as plain data with no Tauri handle.
+/// `build_menu_model` produces these (pure, unit-testable) and `render_node`
+/// turns them into native menu items.
+#[derive(Debug, PartialEq, Eq)]
+enum MenuNode {
+    /// A leaf item. `enabled = false` renders as a non-clickable label.
+    Item {
+        id: String,
+        label: String,
+        enabled: bool,
+    },
+    /// A horizontal divider.
+    Separator,
+    /// A submenu with its own child items.
+    Submenu {
+        id: String,
+        label: String,
+        children: Vec<MenuNode>,
+    },
+}
 
-    // Status line (disabled = non-clickable).
-    let status = MenuItem::with_id(app, "status", status_label(repos), false, None::<&str>)?;
-    menu.append(&status)?;
-    menu.append(&PredefinedMenuItem::separator(app)?)?;
-
-    let tags = distinct_tags(repos);
-    if repos.is_empty() {
-        append_empty(app, &menu)?;
-    } else if tags.is_empty() {
-        append_flat(app, &menu, repos)?;
-    } else {
-        append_grouped(app, &menu, repos, &tags)?;
+impl MenuNode {
+    fn item(id: impl Into<String>, label: impl Into<String>, enabled: bool) -> Self {
+        MenuNode::Item {
+            id: id.into(),
+            label: label.into(),
+            enabled,
+        }
     }
 
-    menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_CHECK_NOW,
-        "Check now",
-        true,
-        None::<&str>,
-    )?)?;
-    // Enabled only when there is something to clear.
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_MARK_ALL,
-        "Mark all as read",
-        any_unseen,
-        None::<&str>,
-    )?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_SETTINGS,
-        "Settings…",
-        true,
-        None::<&str>,
-    )?)?;
-    menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&about_submenu(app)?)?;
-    menu.append(&MenuItem::with_id(
-        app,
-        ID_QUIT,
-        "Quit",
-        true,
-        None::<&str>,
-    )?)?;
+    /// The node's id, or "---" for a separator (which has none).
+    #[cfg(test)]
+    fn id(&self) -> &str {
+        match self {
+            MenuNode::Separator => "---",
+            MenuNode::Item { id, .. } | MenuNode::Submenu { id, .. } => id,
+        }
+    }
 
+    /// A submenu's children, or an empty slice for leaves/separators.
+    #[cfg(test)]
+    fn children(&self) -> &[MenuNode] {
+        match self {
+            MenuNode::Submenu { children, .. } => children,
+            _ => &[],
+        }
+    }
+}
+
+/// A single repository as a clickable leaf item.
+fn repo_node(repo: &Repo) -> MenuNode {
+    MenuNode::item(format!("{REPO_PREFIX}{}", repo.id), repo_label(repo), true)
+}
+
+/// Label for a tag group submenu: "tag (count) ●" (● when any member unseen).
+fn group_label(tag: &str, members: &[&Repo]) -> String {
+    let mark = if members.iter().any(|r| r.has_unseen) {
+        " ●"
+    } else {
+        ""
+    };
+    format!("{tag} ({}){mark}", members.len())
+}
+
+/// A tag group as a submenu containing its repositories.
+fn group_node(tag: &str, members: &[&Repo]) -> MenuNode {
+    MenuNode::Submenu {
+        id: format!("group:{tag}"),
+        label: group_label(tag, members),
+        children: members.iter().map(|r| repo_node(r)).collect(),
+    }
+}
+
+/// The repository section: a placeholder when empty, a flat list when no tags
+/// exist, otherwise one submenu per tag plus an "Ungrouped" bucket.
+fn repo_section(repos: &[Repo]) -> Vec<MenuNode> {
+    if repos.is_empty() {
+        return vec![MenuNode::item("noop", "No repositories", false)];
+    }
+    let tags = distinct_tags(repos);
+    if tags.is_empty() {
+        return repos.iter().map(repo_node).collect();
+    }
+
+    let mut nodes: Vec<MenuNode> = tags
+        .iter()
+        .map(|tag| {
+            let members: Vec<&Repo> = repos.iter().filter(|r| r.tags.contains(tag)).collect();
+            group_node(tag, &members)
+        })
+        .collect();
+    let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
+    if !untagged.is_empty() {
+        nodes.push(group_node(UNGROUPED, &untagged));
+    }
+    nodes
+}
+
+/// The "About" submenu node: version, authors and a link to the repository.
+fn about_node() -> MenuNode {
+    MenuNode::Submenu {
+        id: "about".into(),
+        label: "About".into(),
+        children: vec![
+            MenuNode::item(
+                "about_version",
+                format!("libway v{}", env!("CARGO_PKG_VERSION")),
+                true,
+            ),
+            // "&&" renders as a literal "&"; a single "&" is treated as a
+            // mnemonic accelerator by the native menu and would be hidden.
+            MenuNode::item("about_authors", "By Alexander Vershinin && Claude", true),
+            MenuNode::Separator,
+            // The leading ↗ hints that this opens an external page.
+            MenuNode::item(ID_ABOUT_GITHUB, "↗ View on GitHub", true),
+        ],
+    }
+}
+
+/// Describe the whole tray menu as plain data: status line, the repository
+/// section, then the actions. Pure and unit-testable — no Tauri handle.
+fn build_menu_model(repos: &[Repo], any_unseen: bool) -> Vec<MenuNode> {
+    let mut nodes = vec![
+        // Status line (disabled = non-clickable).
+        MenuNode::item("status", status_label(repos), false),
+        MenuNode::Separator,
+    ];
+
+    nodes.extend(repo_section(repos));
+
+    nodes.extend([
+        MenuNode::Separator,
+        MenuNode::item(ID_CHECK_NOW, "Check now", true),
+        // Enabled only when there is something to clear.
+        MenuNode::item(ID_MARK_ALL, "Mark all as read", any_unseen),
+        MenuNode::item(ID_SETTINGS, "Settings…", true),
+        MenuNode::Separator,
+        about_node(),
+        MenuNode::item(ID_QUIT, "Quit", true),
+    ]);
+
+    nodes
+}
+
+/// Build the native tray menu from the repository list.
+pub(super) fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<Wry>> {
+    let menu = Menu::new(app)?;
+    for node in build_menu_model(repos, any_unseen) {
+        menu.append(&render_node(app, &node)?)?;
+    }
     Ok(menu)
 }
 
-/// "About" submenu: version, authors and a link to the repository.
-fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
-    let about = Submenu::with_id(app, "about", "About", true)?;
-
-    // Version and authors are informational; enabled so they show in the
-    // normal text color rather than a dimmed/disabled gray. Clicking them is
-    // a no-op (no handler).
-    let version = format!("libway v{}", env!("CARGO_PKG_VERSION"));
-    about.append(&MenuItem::with_id(
-        app,
-        "about_version",
-        version,
-        true,
-        None::<&str>,
-    )?)?;
-    about.append(&MenuItem::with_id(
-        app,
-        "about_authors",
-        // "&&" renders as a literal "&"; a single "&" is treated as a
-        // mnemonic accelerator by the native menu and would be hidden.
-        "By Alexander Vershinin && Claude",
-        true,
-        None::<&str>,
-    )?)?;
-    about.append(&PredefinedMenuItem::separator(app)?)?;
-    // The leading ↗ hints that this opens an external page.
-    about.append(&MenuItem::with_id(
-        app,
-        ID_ABOUT_GITHUB,
-        "↗ View on GitHub",
-        true,
-        None::<&str>,
-    )?)?;
-    Ok(about)
-}
-
-/// Placeholder shown when no repositories are tracked.
-fn append_empty(app: &AppHandle, menu: &Menu<Wry>) -> Result<()> {
-    let empty = MenuItem::with_id(app, "noop", "No repositories", false, None::<&str>)?;
-    menu.append(&empty)?;
-    Ok(())
-}
-
-/// No tags anywhere — a simple flat list of clickable repositories.
-fn append_flat(app: &AppHandle, menu: &Menu<Wry>, repos: &[Repo]) -> Result<()> {
-    for repo in repos {
-        let id = format!("{REPO_PREFIX}{}", repo.id);
-        let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
-        menu.append(&item)?;
-    }
-    Ok(())
-}
-
-/// One submenu per tag, plus an "Ungrouped" submenu for untagged repos.
-fn append_grouped(
-    app: &AppHandle,
-    menu: &Menu<Wry>,
-    repos: &[Repo],
-    tags: &[String],
-) -> Result<()> {
-    for tag in tags {
-        let members: Vec<&Repo> = repos.iter().filter(|r| r.tags.contains(tag)).collect();
-        append_group(app, menu, tag, &members)?;
-    }
-    let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
-    if !untagged.is_empty() {
-        append_group(app, menu, UNGROUPED, &untagged)?;
-    }
-    Ok(())
-}
-
-/// Append a tag group as a submenu: "tag (count) ●", containing its repos.
-fn append_group(app: &AppHandle, menu: &Menu<Wry>, tag: &str, members: &[&Repo]) -> Result<()> {
-    let unseen = members.iter().any(|r| r.has_unseen);
-    let mark = if unseen { " ●" } else { "" };
-    let label = format!("{tag} ({}){mark}", members.len());
-    let submenu = Submenu::with_id(app, format!("group:{tag}"), label, true)?;
-    for repo in members {
-        append_repo(app, &submenu, repo)?;
-    }
-    menu.append(&submenu)?;
-    Ok(())
+/// Build a native item kind from a model node, recursing into submenus.
+/// This is the only place that touches Tauri; all structure/labels come from
+/// the model, so it stays a mechanical translation with no decisions.
+fn render_node(app: &AppHandle, node: &MenuNode) -> Result<tauri::menu::MenuItemKind<Wry>> {
+    use tauri::menu::IsMenuItem;
+    let kind = match node {
+        MenuNode::Separator => PredefinedMenuItem::separator(app)?.kind(),
+        MenuNode::Item { id, label, enabled } => {
+            MenuItem::with_id(app, id, label, *enabled, None::<&str>)?.kind()
+        }
+        MenuNode::Submenu {
+            id,
+            label,
+            children,
+        } => {
+            let submenu = Submenu::with_id(app, id, label, true)?;
+            for child in children {
+                submenu.append(&render_node(app, child)?)?;
+            }
+            submenu.kind()
+        }
+    };
+    Ok(kind)
 }
 
 #[cfg(test)]
@@ -257,6 +290,18 @@ mod tests {
     }
 
     #[test]
+    fn status_suffix_picks_most_recent_and_handles_never_checked() {
+        let now = 10_000;
+        // "Last activity" = the most recent (max) check across repos: a fresh
+        // check wins over an older one, so the suffix reflects 2m, not 3h.
+        let last = [now - 3 * 3600, now - 120].into_iter().max();
+        assert_eq!(status_suffix(last, now), "checked 2m ago");
+
+        // Never checked → explicit wording, no relative time.
+        assert_eq!(status_suffix(None, now), "not checked yet");
+    }
+
+    #[test]
     fn repo_label_marks_unseen_and_missing_version() {
         let mut no_version = Repo::sample("cli", "cli");
         no_version.latest_version = None;
@@ -290,5 +335,133 @@ mod tests {
     fn distinct_tags_empty_when_no_tags() {
         let r = Repo::sample("o", "a");
         assert!(distinct_tags(&[r]).is_empty());
+    }
+
+    /// A repo with the given id and tags (owner/name are placeholders).
+    fn repo_with(id: i64, tags: &[&str]) -> Repo {
+        let mut r = Repo::sample("o", "r");
+        r.id = id;
+        r.tags = tags.iter().map(|t| t.to_string()).collect();
+        r
+    }
+
+    /// Ids of a list of nodes, for asserting structure/order.
+    fn ids(nodes: &[MenuNode]) -> Vec<&str> {
+        nodes.iter().map(MenuNode::id).collect()
+    }
+
+    /// Find the node with the given id.
+    fn find<'a>(nodes: &'a [MenuNode], id: &str) -> &'a MenuNode {
+        nodes
+            .iter()
+            .find(|n| n.id() == id)
+            .unwrap_or_else(|| panic!("no node with id {id}"))
+    }
+
+    #[test]
+    fn group_label_counts_members_and_marks_unseen() {
+        let a = Repo::sample("o", "a");
+        let mut b = Repo::sample("o", "b");
+        assert_eq!(group_label("ci", &[&a, &b]), "ci (2)");
+
+        b.has_unseen = true;
+        assert_eq!(group_label("ci", &[&a, &b]), "ci (2) ●");
+    }
+
+    #[test]
+    fn repo_node_uses_prefixed_id() {
+        let mut r = Repo::sample("cli", "cli");
+        r.id = 42;
+        r.latest_version = Some("v1.0.0".into());
+        assert_eq!(
+            repo_node(&r),
+            MenuNode::item("repo:42", "cli/cli — v1.0.0", true)
+        );
+    }
+
+    #[test]
+    fn repo_section_empty_shows_placeholder() {
+        assert_eq!(
+            repo_section(&[]),
+            vec![MenuNode::item("noop", "No repositories", false)]
+        );
+    }
+
+    #[test]
+    fn repo_section_untagged_is_flat_list() {
+        // Distinct ids so the order is visible; no tags.
+        let repos = vec![repo_with(1, &[]), repo_with(2, &[])];
+        let section = repo_section(&repos);
+        // Flat: one leaf item per repo, no submenus.
+        assert_eq!(ids(&section), vec!["repo:1", "repo:2"]);
+        assert!(section.iter().all(|n| matches!(n, MenuNode::Item { .. })));
+    }
+
+    #[test]
+    fn repo_section_groups_by_tag_with_ungrouped_bucket() {
+        let repos = vec![
+            repo_with(1, &["ci"]),
+            repo_with(2, &["build"]),
+            repo_with(3, &[]), // untagged
+        ];
+        let section = repo_section(&repos);
+
+        // Sorted tag groups first, then the Ungrouped bucket.
+        assert_eq!(
+            ids(&section),
+            vec!["group:build", "group:ci", "group:Ungrouped"]
+        );
+        // The Ungrouped bucket holds the one untagged repo.
+        let ungrouped = &section[2];
+        assert_eq!(ungrouped.id(), "group:Ungrouped");
+        assert_eq!(ids(ungrouped.children()), vec!["repo:3"]);
+    }
+
+    #[test]
+    fn build_menu_model_has_expected_skeleton() {
+        let repos = vec![Repo::sample("o", "a")];
+        let model = build_menu_model(&repos, false);
+
+        assert_eq!(
+            ids(&model),
+            vec![
+                "status",
+                "---",
+                "repo:1", // the single untagged repo, flat
+                "---",
+                ID_CHECK_NOW,
+                ID_MARK_ALL,
+                ID_SETTINGS,
+                "---",
+                "about",
+                ID_QUIT,
+            ]
+        );
+    }
+
+    #[test]
+    fn build_menu_model_mark_all_enabled_follows_any_unseen() {
+        let repos = vec![Repo::sample("o", "a")];
+
+        // The "Mark all as read" item is enabled exactly when any_unseen is set.
+        let disabled = build_menu_model(&repos, false);
+        assert_eq!(
+            find(&disabled, ID_MARK_ALL),
+            &MenuNode::item(ID_MARK_ALL, "Mark all as read", false)
+        );
+
+        let enabled = build_menu_model(&repos, true);
+        assert_eq!(
+            find(&enabled, ID_MARK_ALL),
+            &MenuNode::item(ID_MARK_ALL, "Mark all as read", true)
+        );
+    }
+
+    #[test]
+    fn about_node_links_to_github() {
+        let about = about_node();
+        assert_eq!(about.id(), "about");
+        // The external link item is present with the GitHub id.
+        assert!(about.children().iter().any(|c| c.id() == ID_ABOUT_GITHUB));
     }
 }
