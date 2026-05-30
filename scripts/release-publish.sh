@@ -6,6 +6,10 @@ set -euo pipefail
 VERSION="$(node -p "require('./package.json').version")"
 TAG="v$VERSION"
 
+# Fail early if the version isn't in sync across the three files (the binary
+# bakes in Cargo.toml's version, which the tag/release should match).
+bash scripts/check-versions.sh
+
 # The tag must exist (created by release-version.sh).
 if ! git rev-parse "$TAG" >/dev/null 2>&1; then
   echo "Tag $TAG not found — run 'npm run release:version' first." >&2

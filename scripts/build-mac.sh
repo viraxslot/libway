@@ -7,6 +7,10 @@ set -euo pipefail
 APP_NAME="libway.app"
 SRC="src-tauri/target/release/bundle/macos/${APP_NAME}"
 
+# The version is baked into the binary at compile time (CARGO_PKG_VERSION),
+# so make sure all three files agree before building.
+bash scripts/check-versions.sh
+
 echo "Building release bundle…"
 npm run tauri build
 
