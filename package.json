@@ -17,6 +17,7 @@
     "changelog": "git-cliff --output CHANGELOG.md",
     "release:version": "bash scripts/release-version.sh",
     "release:publish": "bash scripts/release-publish.sh",
+    "retag": "bash scripts/retag.sh",
     "lint": "biome check src",
     "lint:fix": "biome check --write src",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",

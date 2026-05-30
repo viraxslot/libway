@@ -36,6 +36,7 @@ src-tauri/src/
 scripts/build-mac.sh     build the .app (no install)
 scripts/install-mac.sh   build the .app and install it into /Applications
 scripts/check-versions.sh  assert the version matches across config files
+scripts/retag.sh         move a tag onto the current HEAD (local + remote)
 ```
 
 Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
@@ -94,9 +95,17 @@ npm run release:publish
 Cargo.toml, regenerates `CHANGELOG.md` from the Conventional Commits with
 [git-cliff](https://git-cliff.org), then commits and tags it. Run
 `npm run changelog` to regenerate it manually. `release:publish` builds a `.dmg`,
-pushes the commit and tag, and creates a GitHub release with auto-generated
-notes (requires the `gh` CLI). The `.dmg` is unsigned, so first launch needs
-right-click → Open to get past Gatekeeper.
+pushes the commit and tag, and creates a GitHub release whose notes are the
+git-cliff changelog for that tag (requires the `gh` CLI). The `.dmg` is
+unsigned, so first launch needs right-click → Open to get past Gatekeeper.
+
+If a tag was created a few commits early, move it onto the current HEAD
+(locally and on the remote) before publishing:
+
+```bash
+npm run retag              # moves the current version's tag (vX.Y.Z)
+npm run retag -- v0.1.0    # moves a specific tag
+```
 
 The version must stay in sync across those three files (the tray's About
 reads it from Cargo.toml). `build:mac` and `release:publish` verify this
