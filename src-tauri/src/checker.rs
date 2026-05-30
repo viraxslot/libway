@@ -62,7 +62,10 @@ pub async fn check_all(app: &AppHandle, db: &Db) -> Result<Vec<Repo>> {
             Err(e) => {
                 // A single repo failing (typo, deleted, rate limit) must not
                 // abort the whole run.
-                eprintln!("libway: check failed for {}/{}: {e:#}", repo.owner, repo.name);
+                eprintln!(
+                    "libway: check failed for {}/{}: {e:#}",
+                    repo.owner, repo.name
+                );
             }
         }
     }

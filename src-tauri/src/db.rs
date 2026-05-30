@@ -89,8 +89,8 @@ impl Db {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("failed to create directory {parent:?}"))?;
         }
-        let conn = Connection::open(path)
-            .with_context(|| format!("failed to open database {path:?}"))?;
+        let conn =
+            Connection::open(path).with_context(|| format!("failed to open database {path:?}"))?;
         init_schema(&conn)?;
         Ok(Db(Mutex::new(conn)))
     }
@@ -257,10 +257,7 @@ pub fn touch_checked(conn: &Connection, id: i64, now: i64) -> Result<()> {
 
 /// Clear the "unseen" flag on a single repository.
 pub fn mark_seen(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute(
-        "UPDATE repos SET has_unseen = 0 WHERE id = ?1",
-        params![id],
-    )?;
+    conn.execute("UPDATE repos SET has_unseen = 0 WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -371,7 +368,15 @@ mod tests {
         let c = conn(&db);
         let id = add_repo(&c, "cli", "cli", 1).unwrap();
 
-        update_version(&c, id, "v2.40.0", "https://example/r", SourceKind::Release, 10).unwrap();
+        update_version(
+            &c,
+            id,
+            "v2.40.0",
+            "https://example/r",
+            SourceKind::Release,
+            10,
+        )
+        .unwrap();
         let repos = list_repos(&c).unwrap();
         assert_eq!(repos[0].latest_version.as_deref(), Some("v2.40.0"));
         assert_eq!(repos[0].source_kind, Some(SourceKind::Release));
@@ -478,7 +483,7 @@ mod tests {
 
         let n = delete_tag(&c, "build").unwrap();
         assert_eq!(n, 2); // matched on both repos, case-insensitively
-        // Most recently added first: b (created_at=2) precedes a (created_at=1).
+                          // Most recently added first: b (created_at=2) precedes a (created_at=1).
         let repos = list_repos(&c).unwrap();
         assert!(repos[0].tags.is_empty()); // b: Build deleted
         assert_eq!(repos[1].tags, vec!["ci"]); // a: build deleted, ci kept

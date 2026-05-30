@@ -49,8 +49,8 @@ fn client(token: Option<&str>) -> Result<reqwest::Client> {
         HeaderValue::from_static("2022-11-28"),
     );
     if let Some(t) = token {
-        let mut v = HeaderValue::from_str(&format!("Bearer {t}"))
-            .context("invalid character in token")?;
+        let mut v =
+            HeaderValue::from_str(&format!("Bearer {t}")).context("invalid character in token")?;
         v.set_sensitive(true);
         headers.insert(AUTHORIZATION, v);
     }
@@ -76,18 +76,16 @@ pub async fn repo_exists(owner: &str, name: &str, token: Option<&str>) -> Result
     match resp.status() {
         s if s.is_success() => Ok(true),
         reqwest::StatusCode::NOT_FOUND => Ok(false),
-        s => Err(anyhow!("GitHub returned {s} while verifying {owner}/{name}")),
+        s => Err(anyhow!(
+            "GitHub returned {s} while verifying {owner}/{name}"
+        )),
     }
 }
 
 /// Fetch the latest version of repository `owner/name`.
 /// `token` is an optional GitHub token (raises rate limits; less needed for
 /// public repos, but we pass it along whenever it is present).
-pub async fn fetch_latest(
-    owner: &str,
-    name: &str,
-    token: Option<&str>,
-) -> Result<LatestVersion> {
+pub async fn fetch_latest(owner: &str, name: &str, token: Option<&str>) -> Result<LatestVersion> {
     let client = client(token)?;
 
     // 1) Try the stable release.
@@ -130,7 +128,9 @@ pub async fn fetch_latest(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        return Err(anyhow!("GitHub returned {status} for tags of {owner}/{name}"));
+        return Err(anyhow!(
+            "GitHub returned {status} for tags of {owner}/{name}"
+        ));
     }
 
     let tags: Vec<TagResponse> = resp
@@ -143,7 +143,10 @@ pub async fn fetch_latest(
         .next()
         .ok_or_else(|| anyhow!("{owner}/{name} has neither releases nor tags"))?;
 
-    let url = format!("https://github.com/{owner}/{name}/releases/tag/{}", tag.name);
+    let url = format!(
+        "https://github.com/{owner}/{name}/releases/tag/{}",
+        tag.name
+    );
     Ok(LatestVersion {
         version: tag.name,
         url,

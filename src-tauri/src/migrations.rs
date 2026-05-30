@@ -61,8 +61,9 @@ pub fn run(conn: &Connection) -> Result<()> {
             // so databases from before this system converge cleanly.
             Err(ref err) if is_duplicate_column(err) => {}
             Err(err) => {
-                return Err(anyhow::Error::new(err)
-                    .context(format!("migration {} failed", version + 1)));
+                return Err(
+                    anyhow::Error::new(err).context(format!("migration {} failed", version + 1))
+                );
             }
         }
         // user_version doesn't accept bound params; the value is our own i64.
@@ -86,7 +87,9 @@ mod tests {
     fn sets_user_version() {
         let conn = Connection::open_in_memory().unwrap();
         run(&conn).unwrap();
-        let v: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0)).unwrap();
+        let v: i64 = conn
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(v, count());
     }
 

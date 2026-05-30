@@ -76,7 +76,8 @@ pub fn refresh(app: &AppHandle, db: &Db) -> Result<()> {
 
         let bytes = if any_unseen { ICON_NEW } else { ICON_IDLE };
         let icon = Image::from_bytes(bytes).context("failed to load tray icon")?;
-        tray.set_icon(Some(icon)).context("failed to set tray icon")?;
+        tray.set_icon(Some(icon))
+            .context("failed to set tray icon")?;
         tray.set_icon_as_template(true).ok();
     }
     Ok(())
@@ -166,8 +167,7 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
     } else {
         // One submenu per tag, plus an "Ungrouped" submenu for untagged repos.
         for tag in distinct_tags(repos) {
-            let members: Vec<&Repo> =
-                repos.iter().filter(|r| r.tags.contains(&tag)).collect();
+            let members: Vec<&Repo> = repos.iter().filter(|r| r.tags.contains(&tag)).collect();
             append_group(app, &menu, &tag, &members)?;
         }
         let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
@@ -177,7 +177,13 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
     }
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    menu.append(&MenuItem::with_id(app, ID_CHECK_NOW, "Check now", true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        ID_CHECK_NOW,
+        "Check now",
+        true,
+        None::<&str>,
+    )?)?;
     // Enabled only when there is something to clear.
     menu.append(&MenuItem::with_id(
         app,
@@ -186,10 +192,22 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
         any_unseen,
         None::<&str>,
     )?)?;
-    menu.append(&MenuItem::with_id(app, ID_SETTINGS, "Settings…", true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        ID_SETTINGS,
+        "Settings…",
+        true,
+        None::<&str>,
+    )?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&about_submenu(app)?)?;
-    menu.append(&MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?)?;
+    menu.append(&MenuItem::with_id(
+        app,
+        ID_QUIT,
+        "Quit",
+        true,
+        None::<&str>,
+    )?)?;
 
     Ok(menu)
 }
@@ -202,7 +220,13 @@ fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
     // normal text color rather than a dimmed/disabled gray. Clicking them is
     // a no-op (no handler).
     let version = format!("libway v{}", env!("CARGO_PKG_VERSION"));
-    about.append(&MenuItem::with_id(app, "about_version", version, true, None::<&str>)?)?;
+    about.append(&MenuItem::with_id(
+        app,
+        "about_version",
+        version,
+        true,
+        None::<&str>,
+    )?)?;
     about.append(&MenuItem::with_id(
         app,
         "about_authors",

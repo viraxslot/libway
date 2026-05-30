@@ -238,7 +238,10 @@ mod tests {
 
     #[test]
     fn parses_plain() {
-        assert_eq!(parse_full_name("cli/cli").unwrap(), ("cli".into(), "cli".into()));
+        assert_eq!(
+            parse_full_name("cli/cli").unwrap(),
+            ("cli".into(), "cli".into())
+        );
     }
 
     #[test]
