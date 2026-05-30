@@ -4,7 +4,7 @@ import {
   getCheckOnStartup,
   setCheckInterval,
   setCheckOnStartup,
-} from "../api";
+} from "@/api";
 
 /** Editable check interval in minutes plus the "check on startup" toggle. */
 export default function IntervalSettings() {

@@ -1,5 +1,5 @@
-import type { Repo } from "../types";
-import RepoRow from "./RepoRow";
+import RepoRow from "@/features/repos/RepoRow/RepoRow";
+import type { Repo } from "@/types";
 
 interface Props {
   repos: Repo[];

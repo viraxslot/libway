@@ -10,11 +10,11 @@ import {
   removeRepo,
   renameTag,
   setRepoTags,
-} from "./api";
-import RepositoriesTab from "./components/RepositoriesTab";
-import SettingsTab from "./components/SettingsTab";
-import TagsTab from "./components/TagsTab";
-import type { Repo } from "./types";
+} from "@/api";
+import RepositoriesTab from "@/features/repos/RepositoriesTab/RepositoriesTab";
+import SettingsTab from "@/features/settings/SettingsTab/SettingsTab";
+import TagsTab from "@/features/tags/TagsTab/TagsTab";
+import type { Repo } from "@/types";
 
 type Tab = "repositories" | "tags" | "settings";
 

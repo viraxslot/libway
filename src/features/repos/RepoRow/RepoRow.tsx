@@ -1,6 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { type KeyboardEvent, useState } from "react";
-import { type Repo, repoFullName } from "../types";
+import { type Repo, repoFullName } from "@/types";
 
 interface Props {
   repo: Repo;

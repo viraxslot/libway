@@ -2,7 +2,7 @@
 // Keeping them in one place gives the UI a typed, named API.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Repo } from "./types";
+import type { Repo } from "@/types";
 
 export function listRepos(): Promise<Repo[]> {
   return invoke<Repo[]>("list_repos");

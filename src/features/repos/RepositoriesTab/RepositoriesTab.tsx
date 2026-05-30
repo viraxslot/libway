@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { type Repo, repoFullName } from "../types";
-import AddRepoForm from "./AddRepoForm";
-import ConfirmDialog from "./ConfirmDialog";
-import RepoList from "./RepoList";
+import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import AddRepoForm from "@/features/repos/AddRepoForm/AddRepoForm";
+import RepoList from "@/features/repos/RepoList/RepoList";
+import { type Repo, repoFullName } from "@/types";
 
 interface Props {
   repos: Repo[];

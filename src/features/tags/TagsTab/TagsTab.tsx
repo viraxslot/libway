@@ -1,6 +1,6 @@
 import { type KeyboardEvent, useMemo, useState } from "react";
-import type { Repo } from "../types";
-import ConfirmDialog from "./ConfirmDialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import type { Repo } from "@/types";
 
 interface Props {
   repos: Repo[];

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAutostart, setAutostart } from "../api";
+import { getAutostart, setAutostart } from "@/api";
 
 /** Toggle for launching the app at login. */
 export default function AutostartSettings() {

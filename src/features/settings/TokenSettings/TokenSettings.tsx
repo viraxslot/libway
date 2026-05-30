@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { clearToken, hasToken, setToken } from "../api";
+import { clearToken, hasToken, setToken } from "@/api";
 
 /** GitHub token input. The value is stored in the macOS Keychain, never shown. */
 export default function TokenSettings() {
