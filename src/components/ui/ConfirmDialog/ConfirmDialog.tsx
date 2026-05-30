@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import Button from "@/components/ui/Button/Button";
 
 interface Props {
   title: string;
@@ -33,12 +34,12 @@ export default function ConfirmDialog({
       <h3>{title}</h3>
       <p>{message}</p>
       <div className="modal-actions">
-        <button type="button" className="secondary" onClick={onCancel}>
+        <Button variant="secondary" type="button" onClick={onCancel}>
           {cancelLabel}
-        </button>
-        <button type="button" className="danger" onClick={onConfirm}>
+        </Button>
+        <Button variant="danger" type="button" onClick={onConfirm}>
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </dialog>
   );

@@ -1,4 +1,6 @@
 import { type FormEvent, useState } from "react";
+import Button from "@/components/ui/Button/Button";
+import Input from "@/components/ui/Input/Input";
 
 interface Props {
   onAdd: (fullName: string) => Promise<void>;
@@ -13,7 +15,9 @@ export default function AddRepoForm({ onAdd }: Props) {
   async function submit(ev: FormEvent) {
     ev.preventDefault();
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -28,7 +32,7 @@ export default function AddRepoForm({ onAdd }: Props) {
 
   return (
     <form className="add-form" onSubmit={submit}>
-      <input
+      <Input
         type="text"
         placeholder="owner/repo"
         value={value}
@@ -37,9 +41,9 @@ export default function AddRepoForm({ onAdd }: Props) {
         spellCheck={false}
         autoCapitalize="off"
       />
-      <button type="submit" disabled={busy || !value.trim()}>
+      <Button type="submit" disabled={busy || !value.trim()}>
         {busy ? "Adding…" : "Add"}
-      </button>
+      </Button>
       {error && <p className="error">{error}</p>}
     </form>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAutostart, setAutostart } from "@/api";
+import Checkbox from "@/components/ui/Checkbox/Checkbox";
 
 /** Toggle for launching the app at login. */
 export default function AutostartSettings() {
@@ -19,10 +20,7 @@ export default function AutostartSettings() {
 
   return (
     <section className="autostart">
-      <label className="checkbox-row">
-        <input type="checkbox" checked={enabled} onChange={toggle} />
-        Launch at login
-      </label>
+      <Checkbox checked={enabled} onChange={toggle} label="Launch at login" />
     </section>
   );
 }

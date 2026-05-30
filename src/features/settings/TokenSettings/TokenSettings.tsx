@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { clearToken, hasToken, setToken } from "@/api";
+import Button from "@/components/ui/Button/Button";
+import Input from "@/components/ui/Input/Input";
 
 /** GitHub token input. The value is stored in the macOS Keychain, never shown. */
 export default function TokenSettings() {
@@ -42,7 +44,7 @@ export default function TokenSettings() {
         {stored ? " Token saved." : " No token set."}
       </p>
       <div className="token-row">
-        <input
+        <Input
           type="password"
           placeholder={stored ? "••••••••" : "ghp_…"}
           value={value}
@@ -50,18 +52,18 @@ export default function TokenSettings() {
           disabled={busy}
           spellCheck={false}
         />
-        <button type="button" onClick={save} disabled={busy || !value.trim()}>
+        <Button type="button" onClick={save} disabled={busy || !value.trim()}>
           Save
-        </button>
+        </Button>
         {stored && (
-          <button
+          <Button
+            variant="secondary"
             type="button"
-            className="secondary"
             onClick={remove}
             disabled={busy}
           >
             Remove
-          </button>
+          </Button>
         )}
       </div>
     </section>

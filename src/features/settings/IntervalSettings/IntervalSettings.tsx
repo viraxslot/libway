@@ -5,6 +5,9 @@ import {
   setCheckInterval,
   setCheckOnStartup,
 } from "@/api";
+import Button from "@/components/ui/Button/Button";
+import Checkbox from "@/components/ui/Checkbox/Checkbox";
+import Input from "@/components/ui/Input/Input";
 
 /** Editable check interval in minutes plus the "check on startup" toggle. */
 export default function IntervalSettings() {
@@ -30,7 +33,9 @@ export default function IntervalSettings() {
   const dirty = saved === null || parsed !== saved;
 
   async function save() {
-    if (!valid) return;
+    if (!valid) {
+      return;
+    }
     setBusy(true);
     try {
       await setCheckInterval(parsed);
@@ -50,7 +55,7 @@ export default function IntervalSettings() {
     <section className="interval">
       <h2>Check interval</h2>
       <div className="interval-row">
-        <input
+        <Input
           type="number"
           min={1}
           step={1}
@@ -59,18 +64,19 @@ export default function IntervalSettings() {
           disabled={busy}
         />
         <span className="muted">minutes</span>
-        <button
+        <Button
           type="button"
           onClick={save}
           disabled={busy || !valid || !dirty}
         >
           Save
-        </button>
+        </Button>
       </div>
-      <label className="checkbox-row">
-        <input type="checkbox" checked={onStartup} onChange={toggleOnStartup} />
-        Check on startup
-      </label>
+      <Checkbox
+        checked={onStartup}
+        onChange={toggleOnStartup}
+        label="Check on startup"
+      />
     </section>
   );
 }

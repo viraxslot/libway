@@ -1,5 +1,8 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { type KeyboardEvent, useState } from "react";
+import Button from "@/components/ui/Button/Button";
+import IconButton from "@/components/ui/IconButton/IconButton";
+import Input from "@/components/ui/Input/Input";
 import { type Repo, repoFullName } from "@/types";
 
 interface Props {
@@ -11,7 +14,9 @@ interface Props {
 
 /** Format a unix timestamp (seconds) as a short local time, or a dash. */
 function formatChecked(ts: number | null): string {
-  if (!ts) return "—";
+  if (!ts) {
+    return "—";
+  }
   return new Date(ts * 1000).toLocaleString();
 }
 
@@ -23,7 +28,9 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
   async function open() {
     if (repo.latestUrl) {
       await openUrl(repo.latestUrl);
-      if (repo.hasUnseen) onSeen(repo.id);
+      if (repo.hasUnseen) {
+        onSeen(repo.id);
+      }
     }
   }
 
@@ -64,9 +71,9 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
         </div>
         <div className="repo-meta">
           {repo.latestVersion ? (
-            <button
+            <Button
+              variant="link"
               type="button"
-              className="link"
               onClick={open}
               title="Open release page"
             >
@@ -74,7 +81,7 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
               {repo.sourceKind === "tag" && (
                 <span className="tag-mark"> (tag)</span>
               )}
-            </button>
+            </Button>
           ) : (
             <span className="muted">not checked yet</span>
           )}
@@ -82,34 +89,34 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
             {formatChecked(repo.lastCheckedAt)}
           </span>
         </div>
-        <button
+        <IconButton
+          variant="remove"
           type="button"
-          className="remove"
           onClick={() => onRemove(repo.id)}
           title="Remove from list"
           aria-label="Remove"
         >
           ✕
-        </button>
+        </IconButton>
       </div>
 
       <div className="repo-tags">
         {repo.tags.map((tag) => (
           <span key={tag} className="chip">
             {tag}
-            <button
+            <IconButton
+              variant="chip-remove"
               type="button"
-              className="chip-remove"
               onClick={() => removeTag(tag)}
               aria-label={`Remove tag ${tag}`}
             >
               ×
-            </button>
+            </IconButton>
           </span>
         ))}
-        <input
+        <Input
           type="text"
-          className="tag-input"
+          variant="tag"
           placeholder="+ tag"
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}

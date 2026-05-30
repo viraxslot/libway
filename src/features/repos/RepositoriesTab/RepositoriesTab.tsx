@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import Input from "@/components/ui/Input/Input";
 import AddRepoForm from "@/features/repos/AddRepoForm/AddRepoForm";
 import RepoList from "@/features/repos/RepoList/RepoList";
 import { type Repo, repoFullName } from "@/types";
@@ -26,7 +27,9 @@ export default function RepositoriesTab({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return repos;
+    if (!q) {
+      return repos;
+    }
     // Match against the full name and any tag.
     return repos.filter(
       (r) =>
@@ -47,9 +50,9 @@ export default function RepositoriesTab({
       <AddRepoForm onAdd={onAdd} />
 
       {repos.length > 0 && (
-        <input
+        <Input
           type="search"
-          className="search"
+          variant="search"
           placeholder="Search repositories…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

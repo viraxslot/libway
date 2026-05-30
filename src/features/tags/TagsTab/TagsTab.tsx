@@ -1,5 +1,8 @@
 import { type KeyboardEvent, useMemo, useState } from "react";
+import Button from "@/components/ui/Button/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
+import IconButton from "@/components/ui/IconButton/IconButton";
+import Input from "@/components/ui/Input/Input";
 import type { Repo } from "@/types";
 
 interface Props {
@@ -96,7 +99,9 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
   }
 
   function confirmPending() {
-    if (!pending) return;
+    if (!pending) {
+      return;
+    }
     if (pending.kind === "merge") {
       void onRenameTag(pending.from, pending.to);
     } else {
@@ -122,40 +127,40 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
         {tags.map((tag) => (
           <li key={tag.name} className="tag-row">
             {editing === tag.name ? (
-              <input
+              <Input
                 type="text"
-                className="tag-input"
+                variant="tag"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => onRenameKey(e, tag.name)}
                 onBlur={() => submitRename(tag.name)}
                 spellCheck={false}
                 autoCapitalize="off"
-                // biome-ignore lint/a11y/noAutofocus: focus the field the user just opened
                 autoFocus
               />
             ) : (
-              <button
+              <Button
+                variant="link"
+                className="tag-name"
                 type="button"
-                className="link tag-name"
                 onClick={() => startEdit(tag.name)}
                 title="Rename tag"
               >
                 {tag.name}
-              </button>
+              </Button>
             )}
             <span className="muted tag-count">
               {tag.count} {tag.count === 1 ? "repo" : "repos"}
             </span>
-            <button
+            <IconButton
+              variant="remove"
               type="button"
-              className="remove"
               onClick={() => askDelete(tag.name, tag.count)}
               title="Delete tag from all repositories"
               aria-label={`Delete tag ${tag.name}`}
             >
               ✕
-            </button>
+            </IconButton>
           </li>
         ))}
       </ul>

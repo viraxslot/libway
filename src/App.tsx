@@ -11,17 +11,20 @@ import {
   renameTag,
   setRepoTags,
 } from "@/api";
+import Button from "@/components/ui/Button/Button";
+import Tab from "@/components/ui/Tab/Tab";
+import Tabs from "@/components/ui/Tabs/Tabs";
 import RepositoriesTab from "@/features/repos/RepositoriesTab/RepositoriesTab";
 import SettingsTab from "@/features/settings/SettingsTab/SettingsTab";
 import TagsTab from "@/features/tags/TagsTab/TagsTab";
 import type { Repo } from "@/types";
 
-type Tab = "repositories" | "tags" | "settings";
+type TabId = "repositories" | "tags" | "settings";
 
 export default function App() {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [checking, setChecking] = useState(false);
-  const [tab, setTab] = useState<Tab>("repositories");
+  const [tab, setTab] = useState<TabId>("repositories");
 
   const reload = useCallback(async () => {
     setRepos(await listRepos());
@@ -84,43 +87,25 @@ export default function App() {
       <header className="app-header">
         <h1>libway</h1>
         <div className="header-actions">
-          <button
+          <Button
             type="button"
-            className="secondary"
+            variant="secondary"
             onClick={handleMarkAll}
             disabled={!anyUnseen}
           >
             Mark all as read
-          </button>
-          <button type="button" onClick={handleCheckNow} disabled={checking}>
+          </Button>
+          <Button type="button" onClick={handleCheckNow} disabled={checking}>
             {checking ? "Checking…" : "Check now"}
-          </button>
+          </Button>
         </div>
       </header>
 
-      <nav className="tabs">
-        <button
-          type="button"
-          className={tab === "repositories" ? "tab active" : "tab"}
-          onClick={() => setTab("repositories")}
-        >
-          Repositories
-        </button>
-        <button
-          type="button"
-          className={tab === "tags" ? "tab active" : "tab"}
-          onClick={() => setTab("tags")}
-        >
-          Tags
-        </button>
-        <button
-          type="button"
-          className={tab === "settings" ? "tab active" : "tab"}
-          onClick={() => setTab("settings")}
-        >
-          Settings
-        </button>
-      </nav>
+      <Tabs value={tab} onChange={(v) => setTab(v as TabId)}>
+        <Tab value="repositories">Repositories</Tab>
+        <Tab value="tags">Tags</Tab>
+        <Tab value="settings">Settings</Tab>
+      </Tabs>
 
       {tab === "repositories" && (
         <RepositoriesTab
