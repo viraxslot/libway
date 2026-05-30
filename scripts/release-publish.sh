@@ -39,8 +39,17 @@ echo "Pushing commit and tag…"
 git push
 git push origin "$TAG"
 
-# Create the GitHub release with auto-generated notes and the .dmg attached.
+# Build release notes from the changelog (git-cliff), grouped by commit type.
+# Fall back to GitHub's auto-notes if git-cliff produces nothing.
 echo "Creating GitHub release ${TAG}…"
-gh release create "$TAG" "$DMG" --title "$TAG" --generate-notes
+NOTES_FILE="$(mktemp)"
+trap 'rm -f "$NOTES_FILE"' EXIT
+git-cliff --current --strip header --tag "$TAG" > "$NOTES_FILE" 2>/dev/null || true
+
+if [ -s "$NOTES_FILE" ]; then
+  gh release create "$TAG" "$DMG" --title "$TAG" --notes-file "$NOTES_FILE"
+else
+  gh release create "$TAG" "$DMG" --title "$TAG" --generate-notes
+fi
 
 echo "Released $TAG."
