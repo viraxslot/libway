@@ -1,3 +1,13 @@
+## [0.2.1] "Wandering Stoat" - 2026-05-30
+
+### 🐛 Bug Fixes
+
+- Use native bun pm version in release script
+
+### ⚙️ Miscellaneous Tasks
+
+- Migrate package manager from npm to bun
+
 ## [0.2.0] "Radiant Yak" - 2026-05-30
 
 ### 🚀 Features
