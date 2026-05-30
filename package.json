@@ -26,11 +26,6 @@
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "prepare": "husky"
   },
-  "lint-staged": {
-    "src/**/*.{ts,tsx,js,jsx,json,css}": [
-      "biome check --write --no-errors-on-unmatched"
-    ]
-  },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-notification": "^2.3.3",
