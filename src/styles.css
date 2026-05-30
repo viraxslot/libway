@@ -260,8 +260,7 @@ input.tag-input {
 
 /* Token + autostart */
 .token {
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
+  /* First section of the Settings tab — no top divider. */
   margin-bottom: 14px;
 }
 
