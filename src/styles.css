@@ -151,12 +151,20 @@ input[type="password"] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
-  padding: 1px 4px 1px 8px;
-  border-radius: 10px;
+  flex: 0 0 auto;
+  max-width: 160px;
+  font-size: 12px;
+  padding: 2px 5px 2px 9px;
+  border-radius: 11px;
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--muted);
+}
+
+/* Truncate an overly long tag label instead of stretching the chip. */
+.chip > span,
+.chip {
+  white-space: nowrap;
 }
 
 .chip-remove {
@@ -164,7 +172,7 @@ input[type="password"] {
   background: none;
   color: var(--muted);
   padding: 0 2px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
@@ -173,12 +181,15 @@ input[type="password"] {
   color: var(--badge);
 }
 
-.tag-input {
+/* input.tag-input (not just .tag-input) to outrank the global
+   input[type="text"] rule, which sets flex:1 and min-width:0 and would
+   otherwise make this field stretch and never wrap. */
+input.tag-input {
   font: inherit;
   font-size: 11px;
-  /* Override the global text-input flex:1 so it doesn't stretch full width. */
   flex: 0 0 auto;
-  width: 64px;
+  width: 96px;
+  min-width: 96px;
   padding: 2px 6px;
   border-radius: 10px;
   border: 1px dashed var(--border);
