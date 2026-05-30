@@ -11,7 +11,7 @@ use anyhow::Result;
 use tauri::{AppHandle, Emitter};
 
 use crate::db::{self, Db, Repo};
-use crate::{github, keychain, notify, tray};
+use crate::{github, keychain, notify};
 
 /// Current unix time in seconds.
 fn now() -> i64 {
@@ -70,8 +70,8 @@ pub async fn check_all(app: &AppHandle, db: &Db) -> Result<Vec<Repo>> {
         }
     }
 
-    tray::refresh(app, db)?;
-    // Let an open settings window reload its list.
+    // Let an open settings window reload its list. The tray refreshes via the
+    // `repos-updated` listener registered in `tray::create`.
     let _ = app.emit("repos-updated", ());
     Ok(updated)
 }

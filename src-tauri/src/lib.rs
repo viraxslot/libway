@@ -2,8 +2,8 @@
 // release versions, notifies on updates, and shows them in the tray.
 
 mod checker;
-mod commands;
-mod db;
+pub mod commands;
+pub mod db;
 mod github;
 mod keychain;
 mod migrations;

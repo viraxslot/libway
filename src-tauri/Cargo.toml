@@ -34,3 +34,6 @@ semver = "1"
 
 # Misc helpers
 anyhow = "1"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }

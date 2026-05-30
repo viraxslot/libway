@@ -13,7 +13,7 @@ use tauri::{
     image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{TrayIcon, TrayIconBuilder},
-    AppHandle, Emitter, Manager, Wry,
+    AppHandle, Emitter, Listener, Manager, Wry,
 };
 use tauri_plugin_opener::OpenerExt;
 
@@ -53,6 +53,18 @@ pub fn create(app: &AppHandle) -> Result<()> {
         .context("failed to build the tray icon")?;
 
     app.manage(TrayState(Mutex::new(Some(tray))));
+
+    // Rebuild the tray menu whenever the repository list changes. Commands
+    // and the background checker emit `repos-updated`; we refresh from here so
+    // the command layer does not depend on the tray (and stays testable on
+    // MockRuntime). refresh() does not emit, so this does not recurse.
+    let handle = app.clone();
+    app.listen("repos-updated", move |_event| {
+        let db = handle.state::<Db>();
+        if let Err(e) = refresh(&handle, &db) {
+            eprintln!("libway: tray refresh failed: {e:#}");
+        }
+    });
 
     // Build the initial menu from current data.
     let db = app.state::<Db>();
@@ -317,8 +329,8 @@ fn open_repo(app: &AppHandle, repo_id: i64) {
         let conn = db.0.lock().unwrap();
         let _ = db::mark_seen(&conn, repo_id);
     }
-    let _ = refresh(app, &db);
     // Notify an open settings window since this change came from the tray.
+    // The tray itself refreshes via the `repos-updated` listener.
     let _ = app.emit("repos-updated", ());
 }
 
@@ -329,7 +341,6 @@ fn mark_all(app: &AppHandle) {
         let conn = db.0.lock().unwrap();
         let _ = db::mark_all_seen(&conn);
     }
-    let _ = refresh(app, &db);
     let _ = app.emit("repos-updated", ());
 }
 

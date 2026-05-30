@@ -95,8 +95,8 @@ impl Db {
         Ok(Db(Mutex::new(conn)))
     }
 
-    /// Open an in-memory database — for tests.
-    #[cfg(test)]
+    /// Open an in-memory database. Used by unit tests and the integration
+    /// test crate (which cannot see `#[cfg(test)]` items).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         init_schema(&conn)?;

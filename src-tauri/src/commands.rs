@@ -5,12 +5,12 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::checker;
 use crate::db::{self, Db, Repo};
 use crate::scheduler;
-use crate::{github, keychain, tray};
+use crate::{github, keychain};
 
 /// Map any error into a String for the frontend.
 fn e<E: std::fmt::Display>(err: E) -> String {
@@ -64,25 +64,29 @@ pub async fn add_repo(
         let conn = db.0.lock().unwrap();
         db::add_repo(&conn, &owner, &name, now()).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)?;
+    app.emit("repos-updated", ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
 
 #[tauri::command]
-pub fn remove_repo(app: AppHandle, db: State<'_, Db>, id: i64) -> Result<Vec<Repo>, String> {
+pub fn remove_repo<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+    id: i64,
+) -> Result<Vec<Repo>, String> {
     {
         let conn = db.0.lock().unwrap();
         db::remove_repo(&conn, id).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)?;
+    app.emit("repos-updated", ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
 
 #[tauri::command]
-pub fn set_repo_tags(
-    app: AppHandle,
+pub fn set_repo_tags<R: tauri::Runtime>(
+    app: AppHandle<R>,
     db: State<'_, Db>,
     id: i64,
     tags: Vec<String>,
@@ -91,14 +95,14 @@ pub fn set_repo_tags(
         let conn = db.0.lock().unwrap();
         db::set_repo_tags(&conn, id, &tags).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)?;
+    app.emit("repos-updated", ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
 
 #[tauri::command]
-pub fn rename_tag(
-    app: AppHandle,
+pub fn rename_tag<R: tauri::Runtime>(
+    app: AppHandle<R>,
     db: State<'_, Db>,
     from: String,
     to: String,
@@ -107,38 +111,49 @@ pub fn rename_tag(
         let conn = db.0.lock().unwrap();
         db::rename_tag(&conn, &from, &to).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)?;
+    app.emit("repos-updated", ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
 
 #[tauri::command]
-pub fn delete_tag(app: AppHandle, db: State<'_, Db>, tag: String) -> Result<Vec<Repo>, String> {
+pub fn delete_tag<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+    tag: String,
+) -> Result<Vec<Repo>, String> {
     {
         let conn = db.0.lock().unwrap();
         db::delete_tag(&conn, &tag).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)?;
+    app.emit("repos-updated", ()).map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
 
 #[tauri::command]
-pub fn mark_seen(app: AppHandle, db: State<'_, Db>, id: i64) -> Result<(), String> {
+pub fn mark_seen<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+    id: i64,
+) -> Result<(), String> {
     {
         let conn = db.0.lock().unwrap();
         db::mark_seen(&conn, id).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)
+    app.emit("repos-updated", ()).map_err(e)
 }
 
 #[tauri::command]
-pub fn mark_all_seen(app: AppHandle, db: State<'_, Db>) -> Result<(), String> {
+pub fn mark_all_seen<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+) -> Result<(), String> {
     {
         let conn = db.0.lock().unwrap();
         db::mark_all_seen(&conn).map_err(e)?;
     }
-    tray::refresh(&app, &db).map_err(e)
+    app.emit("repos-updated", ()).map_err(e)
 }
 
 // --- Check interval ---
