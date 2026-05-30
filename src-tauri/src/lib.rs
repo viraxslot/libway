@@ -4,7 +4,7 @@
 mod checker;
 pub mod commands;
 pub mod db;
-mod github;
+pub mod github;
 mod keychain;
 mod migrations;
 mod notify;
@@ -34,6 +34,9 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             let db = Db::open(&data_dir.join("libway.db"))?;
             app.manage(db);
+
+            // The production GitHub client. Tests replace this with a fake.
+            app.manage(Box::new(github::RealGitHub::new()) as Box<dyn github::GitHubApi>);
 
             // Ask for notification permission up front (macOS shows nothing
             // otherwise).

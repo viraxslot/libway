@@ -292,7 +292,8 @@ fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
                 let db = app.state::<Db>();
-                match crate::checker::check_all(&app, &db).await {
+                let client = app.state::<Box<dyn crate::github::GitHubApi>>();
+                match crate::checker::check_all(&app, &db, client.inner().as_ref()).await {
                     Ok(updated) => crate::notify::notify_check_result(&app, &updated),
                     Err(e) => eprintln!("libway: manual check failed: {e:#}"),
                 }

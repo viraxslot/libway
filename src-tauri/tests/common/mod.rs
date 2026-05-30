@@ -5,7 +5,9 @@
 //! so tests can invoke commands through the real IPC boundary.
 #![allow(dead_code)]
 
-use libway_lib::db::{self, Db};
+use async_trait::async_trait;
+use libway_lib::db::{self, Db, SourceKind};
+use libway_lib::github::{GitHubApi, LatestVersion};
 use serde_json::Value;
 use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -29,6 +31,8 @@ pub fn build_app() -> App<Runtime> {
             libway_lib::commands::set_check_interval,
             libway_lib::commands::get_check_on_startup,
             libway_lib::commands::set_check_on_startup,
+            libway_lib::commands::add_repo,
+            libway_lib::commands::check_now,
         ])
         .build(mock_context(noop_assets()))
         .expect("failed to build mock app");
@@ -40,6 +44,47 @@ pub fn build_app() -> App<Runtime> {
     // mirroring production where the tray listens.
     app.listen("repos-updated", |_event| {});
 
+    app
+}
+
+/// A scripted GitHub client for tests. Each field decides what the
+/// corresponding trait method returns, independent of owner/name.
+pub struct FakeGitHub {
+    /// What `repo_exists` returns: Ok(bool) or an error message.
+    pub exists: Result<bool, String>,
+    /// What `fetch_latest` returns: a (version, url, kind) or an error message.
+    pub latest: Result<(String, String, SourceKind), String>,
+}
+
+impl Default for FakeGitHub {
+    fn default() -> Self {
+        FakeGitHub {
+            exists: Err("FakeGitHub.exists not configured".into()),
+            latest: Err("FakeGitHub.latest not configured".into()),
+        }
+    }
+}
+
+#[async_trait]
+impl GitHubApi for FakeGitHub {
+    async fn repo_exists(&self, _owner: &str, _name: &str) -> anyhow::Result<bool> {
+        self.exists.clone().map_err(|m| anyhow::anyhow!(m))
+    }
+
+    async fn fetch_latest(&self, _owner: &str, _name: &str) -> anyhow::Result<LatestVersion> {
+        let (version, url, source_kind) = self.latest.clone().map_err(|m| anyhow::anyhow!(m))?;
+        Ok(LatestVersion {
+            version,
+            url,
+            source_kind,
+        })
+    }
+}
+
+/// Build a mock app whose GitHub client is the provided fake.
+pub fn build_app_with_github(fake: FakeGitHub) -> App<Runtime> {
+    let app = build_app();
+    app.manage(Box::new(fake) as Box<dyn GitHubApi>);
     app
 }
 

@@ -68,7 +68,8 @@ pub fn spawn(app: &AppHandle) {
         loop {
             if due {
                 let db = app.state::<Db>();
-                if let Err(e) = checker::check_all(&app, &db).await {
+                let client = app.state::<Box<dyn crate::github::GitHubApi>>();
+                if let Err(e) = checker::check_all(&app, &db, client.inner().as_ref()).await {
                     eprintln!("libway: scheduled check failed: {e:#}");
                 }
                 elapsed = 0;

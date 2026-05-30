@@ -1,11 +1,13 @@
-//! E2E tests for repository commands (list / remove / mark_seen / mark_all_seen)
-//! exercised through the real IPC boundary against an in-memory DB.
+//! E2E tests for repository commands (list / add / remove / mark_seen /
+//! mark_all_seen / check_now) exercised through the real IPC boundary against
+//! an in-memory DB, with the GitHub network layer replaced by a fake.
 
 mod common;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use common::FakeGitHub;
 use libway_lib::db::{self as dbmod, Db, SourceKind};
 use serde_json::{json, Value};
 use tauri::{Listener, Manager};
@@ -150,4 +152,104 @@ fn e2e_repos_mutating_command_emits_repos_updated() {
         1,
         "remove_repo must emit exactly one repos-updated"
     );
+}
+
+#[test]
+fn e2e_repos_add_inserts_when_repo_exists() {
+    let fake_github = FakeGitHub {
+        exists: Ok(true),
+        ..Default::default()
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    let repos = common::invoke(&window, "add_repo", json!({ "fullName": "cli/cli" }))
+        .expect("add_repo should succeed when the repo exists");
+
+    let arr = repos.as_array().expect("expected a JSON array");
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0]["owner"], json!("cli"));
+    assert_eq!(arr[0]["name"], json!("cli"));
+    assert_eq!(arr[0]["latestVersion"], serde_json::Value::Null);
+    assert_eq!(arr[0]["hasUnseen"], json!(false));
+}
+
+#[test]
+fn e2e_repos_add_rejects_when_repo_not_found() {
+    let fake_github = FakeGitHub {
+        exists: Ok(false),
+        ..Default::default()
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    let err = common::invoke(&window, "add_repo", json!({ "fullName": "no/such" }))
+        .expect_err("add_repo must reject a repo that does not exist");
+    assert_eq!(err, json!("repository no/such was not found on GitHub"));
+
+    let repos = common::invoke(&window, "list_repos", json!({})).unwrap();
+    assert_eq!(repos.as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn e2e_repos_add_surfaces_verification_error() {
+    let fake_github = FakeGitHub {
+        exists: Err("network down".into()),
+        ..Default::default()
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    let err = common::invoke(&window, "add_repo", json!({ "fullName": "cli/cli" }))
+        .expect_err("add_repo must surface a verification error");
+    let msg = err.as_str().expect("error should be a string");
+    assert!(
+        msg.contains("could not verify cli/cli"),
+        "unexpected error: {msg}"
+    );
+
+    let repos = common::invoke(&window, "list_repos", json!({})).unwrap();
+    assert_eq!(repos.as_array().unwrap().len(), 0);
+}
+
+#[test]
+fn e2e_repos_add_rejects_bad_full_name() {
+    let app = common::build_app_with_github(FakeGitHub::default());
+    let window = common::main_window(&app);
+
+    let err = common::invoke(&window, "add_repo", json!({ "fullName": "not-a-repo" }))
+        .expect_err("add_repo must reject a malformed name");
+    assert_eq!(err, json!("expected the format owner/name"));
+}
+
+#[test]
+fn e2e_repos_check_now_updates_version_and_flags_unseen() {
+    let fake_github = FakeGitHub {
+        exists: Ok(true),
+        latest: Ok((
+            "v2.0.0".to_string(),
+            "https://github.com/o/a/releases/tag/v2.0.0".to_string(),
+            SourceKind::Release,
+        )),
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    // Seed a repo directly (no version yet).
+    common::seed_repo(&app, "o", "a", 100);
+
+    // check_now fetches via the fake, stores the version, returns the list.
+    let repos = common::invoke(&window, "check_now", json!({})).expect("check_now should succeed");
+
+    let arr = repos.as_array().expect("expected a JSON array");
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0]["latestVersion"], json!("v2.0.0"));
+    assert_eq!(arr[0]["sourceKind"], json!("release"));
+    assert_eq!(
+        arr[0]["latestUrl"],
+        json!("https://github.com/o/a/releases/tag/v2.0.0")
+    );
+    // Freshly discovered version on a previously version-less repo:
+    // update_version sets has_unseen = 1.
+    assert_eq!(arr[0]["hasUnseen"], json!(true));
 }

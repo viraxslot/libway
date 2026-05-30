@@ -44,17 +44,17 @@ pub fn list_repos(db: State<'_, Db>) -> Result<Vec<Repo>, String> {
 }
 
 #[tauri::command]
-pub async fn add_repo(
-    app: AppHandle,
+pub async fn add_repo<R: tauri::Runtime>(
+    app: AppHandle<R>,
     db: State<'_, Db>,
+    client: State<'_, Box<dyn github::GitHubApi>>,
     full_name: String,
 ) -> Result<Vec<Repo>, String> {
     let (owner, name) = parse_full_name(&full_name)?;
 
     // Verify the repository exists on GitHub before storing it, so typos and
     // non-existent repos don't end up in the list.
-    let token = keychain::get_token().unwrap_or(None);
-    match github::repo_exists(&owner, &name, token.as_deref()).await {
+    match client.repo_exists(&owner, &name).await {
         Ok(true) => {}
         Ok(false) => return Err(format!("repository {owner}/{name} was not found on GitHub")),
         Err(err) => return Err(format!("could not verify {owner}/{name}: {err}")),
@@ -190,8 +190,14 @@ pub fn set_check_on_startup(db: State<'_, Db>, enabled: bool) -> Result<(), Stri
 
 /// Trigger an immediate check of all repositories. Returns the refreshed list.
 #[tauri::command]
-pub async fn check_now(app: AppHandle, db: State<'_, Db>) -> Result<Vec<Repo>, String> {
-    checker::check_all(&app, &db).await.map_err(e)?;
+pub async fn check_now<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+    client: State<'_, Box<dyn github::GitHubApi>>,
+) -> Result<Vec<Repo>, String> {
+    checker::check_all(&app, &db, client.inner().as_ref())
+        .await
+        .map_err(e)?;
     let conn = db.0.lock().unwrap();
     db::list_repos(&conn).map_err(e)
 }
@@ -269,8 +275,9 @@ mod tests {
 
     #[test]
     fn rejects_bad_input() {
-        assert!(parse_full_name("nope").is_err());
-        assert!(parse_full_name("a/b/c").is_err());
-        assert!(parse_full_name("/x").is_err());
+        assert!(parse_full_name("nope").is_err()); // no slash
+        assert!(parse_full_name("a/b/c").is_err()); // too many parts
+        assert!(parse_full_name("/x").is_err()); // empty owner
+        assert!(parse_full_name("owner/").is_err()); // empty name
     }
 }

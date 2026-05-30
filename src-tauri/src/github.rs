@@ -6,9 +6,11 @@
 //! comparison for tags that do not parse as semver.
 
 use anyhow::{anyhow, Context, Result};
+use async_trait::async_trait;
 use serde::Deserialize;
 
 use crate::db::SourceKind;
+use crate::keychain;
 
 const API_BASE: &str = "https://api.github.com";
 const USER_AGENT: &str = "libway";
@@ -180,6 +182,45 @@ pub fn is_newer(fetched: &str, known: Option<&str>) -> bool {
 fn parse_semver(tag: &str) -> Option<semver::Version> {
     let trimmed = tag.strip_prefix('v').unwrap_or(tag);
     semver::Version::parse(trimmed).ok()
+}
+
+/// Abstraction over the GitHub calls the app makes, so the network layer can
+/// be replaced with a fake in tests. Implementors handle their own auth.
+#[async_trait]
+pub trait GitHubApi: Send + Sync {
+    /// Whether the public repository `owner/name` exists.
+    async fn repo_exists(&self, owner: &str, name: &str) -> Result<bool>;
+    /// The latest version of `owner/name`.
+    async fn fetch_latest(&self, owner: &str, name: &str) -> Result<LatestVersion>;
+}
+
+/// The production client. Reads the GitHub token from the Keychain per call
+/// (so a token added at runtime is picked up without a restart).
+pub struct RealGitHub;
+
+impl RealGitHub {
+    pub fn new() -> Self {
+        RealGitHub
+    }
+}
+
+impl Default for RealGitHub {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl GitHubApi for RealGitHub {
+    async fn repo_exists(&self, owner: &str, name: &str) -> Result<bool> {
+        let token = keychain::get_token().unwrap_or(None);
+        repo_exists(owner, name, token.as_deref()).await
+    }
+
+    async fn fetch_latest(&self, owner: &str, name: &str) -> Result<LatestVersion> {
+        let token = keychain::get_token().unwrap_or(None);
+        fetch_latest(owner, name, token.as_deref()).await
+    }
 }
 
 #[cfg(test)]

@@ -8,10 +8,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use crate::db::{self, Db, Repo};
-use crate::{github, keychain, notify};
+use crate::{github, notify};
 
 /// Current unix time in seconds.
 fn now() -> i64 {
@@ -25,17 +25,20 @@ fn now() -> i64 {
 ///
 /// Network calls happen outside the DB lock; the lock is only taken for short
 /// reads and writes. After the run the tray is rebuilt to reflect new state.
-pub async fn check_all(app: &AppHandle, db: &Db) -> Result<Vec<Repo>> {
+pub async fn check_all<R: Runtime>(
+    app: &AppHandle<R>,
+    db: &Db,
+    client: &dyn github::GitHubApi,
+) -> Result<Vec<Repo>> {
     let repos = {
         let conn = db.0.lock().unwrap();
         db::list_repos(&conn)?
     };
 
-    let token = keychain::get_token().unwrap_or(None);
     let mut updated = Vec::new();
 
     for repo in repos {
-        match github::fetch_latest(&repo.owner, &repo.name, token.as_deref()).await {
+        match client.fetch_latest(&repo.owner, &repo.name).await {
             Ok(latest) => {
                 let is_new = github::is_newer(&latest.version, repo.latest_version.as_deref());
                 let ts = now();
