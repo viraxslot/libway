@@ -3,7 +3,21 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "docs/**"
+
+# Only read access is needed — CI does not push, comment, or release.
+permissions:
+  contents: read
 
 # Cancel an in-progress run when new commits are pushed to the same ref.
 concurrency:
@@ -14,8 +28,9 @@ jobs:
   frontend:
     name: Frontend
     runs-on: macos-latest
+    timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
@@ -35,13 +50,14 @@ jobs:
         run: bun run test
 
   rust:
-    name: Backend 
+    name: Backend
     runs-on: macos-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: src-tauri
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
