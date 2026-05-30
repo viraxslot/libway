@@ -5,11 +5,12 @@
 //! tag from `tags`. Version comparison uses semver, with a fallback to string
 //! comparison for tags that do not parse as semver.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::Deserialize;
 
 use crate::db::SourceKind;
+use crate::http;
 use crate::keychain;
 
 const API_BASE: &str = "https://api.github.com";
@@ -36,61 +37,28 @@ struct TagResponse {
     name: String,
 }
 
-/// Build the HTTP client. The token (if any) goes into the Authorization header.
-fn client(token: Option<&str>) -> Result<reqwest::Client> {
-    use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT as UA};
-
-    let mut headers = HeaderMap::new();
-    headers.insert(UA, HeaderValue::from_static(USER_AGENT));
-    headers.insert(
-        ACCEPT,
-        HeaderValue::from_static("application/vnd.github+json"),
-    );
-    headers.insert(
-        "X-GitHub-Api-Version",
-        HeaderValue::from_static("2022-11-28"),
-    );
-    if let Some(t) = token {
-        let mut v =
-            HeaderValue::from_str(&format!("Bearer {t}")).context("invalid character in token")?;
-        v.set_sensitive(true);
-        headers.insert(AUTHORIZATION, v);
-    }
-
-    reqwest::Client::builder()
-        .default_headers(headers)
+/// Build the configured GitHub client. The token (if any) raises rate limits.
+fn client(token: Option<&str>) -> Result<http::Client> {
+    http::Client::builder(API_BASE)
+        .header("User-Agent", USER_AGENT)
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .bearer(token)
         .build()
-        .context("failed to build the HTTP client")
 }
 
 /// Check whether the public repository `owner/name` exists on GitHub.
-/// Returns Ok(true) on 200, Ok(false) on 404, and Err on network/other errors
-/// (so the caller can distinguish "definitely missing" from "couldn't check").
+/// `Ok(true)` on 200, `Ok(false)` on 404, `Err` on network/other errors.
 pub async fn repo_exists(owner: &str, name: &str, token: Option<&str>) -> Result<bool> {
-    let client = client(token)?;
-    let url = format!("{API_BASE}/repos/{owner}/{name}");
-    let resp = client
-        .get(&url)
-        .send()
+    client(token)?
+        .exists(&format!("/repos/{owner}/{name}"))
         .await
-        .with_context(|| format!("could not reach GitHub to verify {owner}/{name}"))?;
-
-    match resp.status() {
-        s if s.is_success() => Ok(true),
-        reqwest::StatusCode::NOT_FOUND => Ok(false),
-        s => Err(anyhow!(
-            "GitHub returned {s} while verifying {owner}/{name}"
-        )),
-    }
 }
 
-/// Fetch the latest version of repository `owner/name`.
-/// `token` is an optional GitHub token (raises rate limits; less needed for
-/// public repos, but we pass it along whenever it is present).
+/// Fetch the latest version of repository `owner/name`. Prefer the stable
+/// release; fall back to tags only when there are none.
 pub async fn fetch_latest(owner: &str, name: &str, token: Option<&str>) -> Result<LatestVersion> {
     let client = client(token)?;
-
-    // Prefer the stable release; fall back to tags only when there are none.
     match fetch_latest_release(&client, owner, name).await? {
         Some(release) => Ok(release),
         None => fetch_latest_tag(&client, owner, name).await,
@@ -98,68 +66,27 @@ pub async fn fetch_latest(owner: &str, name: &str, token: Option<&str>) -> Resul
 }
 
 /// Fetch the stable release. `Ok(None)` means GitHub returned 404 (no
-/// releases), so the caller should fall back to tags; other non-success codes
-/// are errors.
+/// releases), so the caller should fall back to tags.
 async fn fetch_latest_release(
-    client: &reqwest::Client,
+    client: &http::Client,
     owner: &str,
     name: &str,
 ) -> Result<Option<LatestVersion>> {
-    let url = format!("{API_BASE}/repos/{owner}/{name}/releases/latest");
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .with_context(|| format!("release request for {owner}/{name} failed"))?;
-
-    if resp.status().is_success() {
-        let r: ReleaseResponse = resp
-            .json()
-            .await
-            .context("failed to parse the release response")?;
-        return Ok(Some(LatestVersion {
-            version: r.tag_name,
-            url: r.html_url,
-            source_kind: SourceKind::Release,
-        }));
-    }
-
-    if resp.status() == reqwest::StatusCode::NOT_FOUND {
-        return Ok(None);
-    }
-
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    Err(anyhow!(
-        "GitHub returned {status} for {owner}/{name}: {}",
-        body.chars().take(200).collect::<String>()
-    ))
+    let release: Option<ReleaseResponse> = client
+        .get_optional(&format!("/repos/{owner}/{name}/releases/latest"))
+        .await?;
+    Ok(release.map(|r| LatestVersion {
+        version: r.tag_name,
+        url: r.html_url,
+        source_kind: SourceKind::Release,
+    }))
 }
 
 /// Fetch the top tag, used when a repository publishes tags but no releases.
-async fn fetch_latest_tag(
-    client: &reqwest::Client,
-    owner: &str,
-    name: &str,
-) -> Result<LatestVersion> {
-    let url = format!("{API_BASE}/repos/{owner}/{name}/tags?per_page=1");
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .with_context(|| format!("tags request for {owner}/{name} failed"))?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        return Err(anyhow!(
-            "GitHub returned {status} for tags of {owner}/{name}"
-        ));
-    }
-
-    let tags: Vec<TagResponse> = resp
-        .json()
-        .await
-        .context("failed to parse the tags response")?;
+async fn fetch_latest_tag(client: &http::Client, owner: &str, name: &str) -> Result<LatestVersion> {
+    let tags: Vec<TagResponse> = client
+        .get_json(&format!("/repos/{owner}/{name}/tags?per_page=1"))
+        .await?;
 
     let tag = tags
         .into_iter()
@@ -175,34 +102,6 @@ async fn fetch_latest_tag(
         url,
         source_kind: SourceKind::Tag,
     })
-}
-
-/// Compare a discovered version against the already-known one.
-/// Returns true if `fetched` is newer than `known`.
-///
-/// If `known` is None, any discovered version counts as new. We first try to
-/// compare as semver (stripping a leading 'v'); if either side fails to parse,
-/// we compare as strings (and treat it as new only on an actual difference).
-pub fn is_newer(fetched: &str, known: Option<&str>) -> bool {
-    let known = match known {
-        None => return true,
-        Some(k) => k,
-    };
-    if fetched == known {
-        return false;
-    }
-
-    match (parse_semver(fetched), parse_semver(known)) {
-        (Some(f), Some(k)) => f > k,
-        // Not semver — since the strings differ, treat it as new.
-        _ => true,
-    }
-}
-
-/// Parse a tag as semver, stripping an optional leading 'v'.
-fn parse_semver(tag: &str) -> Option<semver::Version> {
-    let trimmed = tag.strip_prefix('v').unwrap_or(tag);
-    semver::Version::parse(trimmed).ok()
 }
 
 /// Abstraction over the GitHub calls the app makes, so the network layer can
@@ -241,38 +140,5 @@ impl GitHubApi for RealGitHub {
     async fn fetch_latest(&self, owner: &str, name: &str) -> Result<LatestVersion> {
         let token = keychain::get_token().unwrap_or(None);
         fetch_latest(owner, name, token.as_deref()).await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn newer_when_unknown() {
-        assert!(is_newer("v1.0.0", None));
-    }
-
-    #[test]
-    fn equal_is_not_newer() {
-        assert!(!is_newer("v1.2.3", Some("v1.2.3")));
-        assert!(!is_newer("1.2.3", Some("1.2.3")));
-    }
-
-    #[test]
-    fn semver_comparison() {
-        assert!(is_newer("v1.2.4", Some("v1.2.3")));
-        assert!(is_newer("v2.0.0", Some("v1.9.9")));
-        assert!(!is_newer("v1.2.3", Some("v1.2.4")));
-        // with and without 'v' is equivalent
-        assert!(is_newer("1.2.4", Some("v1.2.3")));
-    }
-
-    #[test]
-    fn non_semver_falls_back_to_string_diff() {
-        // dates / non-standard tags: any difference counts as new
-        assert!(is_newer("2024-05-01", Some("2024-04-01")));
-        assert!(!is_newer("nightly", Some("nightly")));
-        assert!(is_newer("release-42", Some("release-41")));
     }
 }

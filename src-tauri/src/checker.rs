@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use crate::db::{self, Db, Repo};
 use crate::events::Event;
 use crate::util::now;
-use crate::{github, notify};
+use crate::{github, notify, version};
 
 /// Run a check over all tracked repositories.
 ///
@@ -29,7 +29,7 @@ pub async fn check_all<R: Runtime>(
     for repo in repos {
         match github_client.fetch_latest(&repo.owner, &repo.name).await {
             Ok(latest) => {
-                let is_new = github::is_newer(&latest.version, repo.latest_version.as_deref());
+                let is_new = version::is_newer(&latest.version, repo.latest_version.as_deref());
                 let ts = now();
                 if is_new {
                     db.with(|c| {
