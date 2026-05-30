@@ -45,13 +45,13 @@ Token: Keychain, service `libway`, account `github-token`.
 
 ## Prerequisites
 
-- **Node 24+** and **Rust** (stable) with the Xcode Command Line Tools.
-- The Node version is pinned via [`mise`](https://mise.jdx.dev) (`mise.toml`)
-  and enforced by `engines` in `package.json`.
+- **Node 24+** and **Rust 1.96+**, plus the Xcode Command Line Tools.
+- Both toolchains are pinned via [`mise`](https://mise.jdx.dev) (`mise.toml`);
+  the Node version is additionally enforced by `engines` in `package.json`.
 
 ```bash
-mise install          # installs the pinned Node (24) for this project
-# without mise: just make sure `node -v` is >= 24
+mise install          # installs the pinned Node (24) and Rust (1.96)
+# without mise: ensure `node -v` >= 24 and `rustc --version` >= 1.96
 ```
 
 ## Development

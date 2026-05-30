@@ -20,11 +20,11 @@ tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
 
 # Storage and secrets
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"] }
 keyring = { version = "3", features = ["apple-native"] }
 
 # HTTP client for the GitHub API (rustls — no system OpenSSL)
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 
 # Serialization and version comparison
@@ -34,4 +34,3 @@ semver = "1"
 
 # Misc helpers
 anyhow = "1"
-dirs = "5"
