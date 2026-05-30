@@ -120,7 +120,7 @@ fn status_label(repos: &[Repo]) -> String {
 fn repo_label(repo: &Repo) -> String {
     let version = repo.latest_version.as_deref().unwrap_or("…");
     let mark = if repo.has_unseen { " ●" } else { "" };
-    format!("{}/{}  {}{}", repo.owner, repo.name, version, mark)
+    format!("{}/{} — {}{}", repo.owner, repo.name, version, mark)
 }
 
 /// Append one repository as a clickable item to a menu or submenu.
