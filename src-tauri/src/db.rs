@@ -57,15 +57,17 @@ pub struct Repo {
 }
 
 /// Serialize tags into the comma-separated form stored in the DB.
-/// Tags are trimmed, lowercased, de-duplicated and sorted for stability.
+/// Tags are trimmed and sorted for stability; the original case is kept, but
+/// de-duplication is case-insensitive (so "Build" and "build" don't coexist).
 fn join_tags(tags: &[String]) -> String {
     let mut cleaned: Vec<String> = tags
         .iter()
-        .map(|t| t.trim().to_lowercase())
+        .map(|t| t.trim().to_string())
         .filter(|t| !t.is_empty())
         .collect();
-    cleaned.sort();
-    cleaned.dedup();
+    // Case-insensitive sort + dedup, keeping the first spelling of each tag.
+    cleaned.sort_by_key(|t| t.to_lowercase());
+    cleaned.dedup_by_key(|t| t.to_lowercase());
     cleaned.join(",")
 }
 
@@ -277,19 +279,21 @@ mod tests {
         let id = add_repo(&c, "cli", "cli", 1).unwrap();
         assert!(list_repos(&c).unwrap()[0].tags.is_empty());
 
-        // Mixed case, blanks, duplicates and whitespace get cleaned up.
+        // Whitespace is trimmed, blanks dropped, and duplicates removed
+        // case-insensitively — but the original case is preserved.
         set_repo_tags(
             &c,
             id,
             &[
                 " Editors ".to_string(),
                 "build".to_string(),
-                "build".to_string(),
+                "Build".to_string(),
                 "".to_string(),
             ],
         )
         .unwrap();
-        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["build", "editors"]);
+        // "Build" is dropped as a case-insensitive dup of "build"; case kept.
+        assert_eq!(list_repos(&c).unwrap()[0].tags, vec!["build", "Editors"]);
 
         // Clearing tags works.
         set_repo_tags(&c, id, &[]).unwrap();

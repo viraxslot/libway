@@ -28,8 +28,12 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
   }
 
   function addTag() {
-    const t = newTag.trim().toLowerCase();
-    if (!t || repo.tags.includes(t)) {
+    const t = newTag.trim();
+    // Keep the case the user typed; treat duplicates case-insensitively.
+    const exists = repo.tags.some(
+      (existing) => existing.toLowerCase() === t.toLowerCase(),
+    );
+    if (!t || exists) {
       setNewTag("");
       return;
     }
