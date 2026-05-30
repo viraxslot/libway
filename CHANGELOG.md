@@ -1,3 +1,23 @@
+## [0.4.0] "Restless Viper" - 2026-05-30
+
+### 🚀 Features
+
+- Notify about new libway releases in the tray
+
+### 🚜 Refactor
+
+- Encapsulate db locking and split long functions
+- Extract scheduler timer into a testable Schedule
+- *(github)* Extract reusable http client and version comparison
+
+### 📚 Documentation
+
+- Tighten commit rules in CLAUDE.md
+
+### 🧪 Testing
+
+- Cover tray menu, scheduler, token; refactor build_menu
+
 ## [0.3.0] "Clever Moose" - 2026-05-30
 
 ### 🚀 Features
