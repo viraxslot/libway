@@ -15,7 +15,13 @@ const UNGROUPED: &str = "Ungrouped";
 
 /// A human "N minutes ago" string for a unix timestamp.
 fn relative_time(ts: i64) -> String {
-    let secs = (now() - ts).max(0);
+    relative_time_from(now(), ts)
+}
+
+/// Pure core of [`relative_time`]: format `ts` relative to a given `now`.
+/// A future timestamp (clock skew) clamps to "just now".
+fn relative_time_from(now: i64, ts: i64) -> String {
+    let secs = (now - ts).max(0);
     if secs < 60 {
         "just now".to_string()
     } else if secs < 3600 {
@@ -76,26 +82,13 @@ pub(super) fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> R
     menu.append(&status)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
 
+    let tags = distinct_tags(repos);
     if repos.is_empty() {
-        let empty = MenuItem::with_id(app, "noop", "No repositories", false, None::<&str>)?;
-        menu.append(&empty)?;
-    } else if distinct_tags(repos).is_empty() {
-        // No tags anywhere — keep a simple flat list.
-        for repo in repos {
-            let id = format!("{REPO_PREFIX}{}", repo.id);
-            let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
-            menu.append(&item)?;
-        }
+        append_empty(app, &menu)?;
+    } else if tags.is_empty() {
+        append_flat(app, &menu, repos)?;
     } else {
-        // One submenu per tag, plus an "Ungrouped" submenu for untagged repos.
-        for tag in distinct_tags(repos) {
-            let members: Vec<&Repo> = repos.iter().filter(|r| r.tags.contains(&tag)).collect();
-            append_group(app, &menu, &tag, &members)?;
-        }
-        let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
-        if !untagged.is_empty() {
-            append_group(app, &menu, UNGROUPED, &untagged)?;
-        }
+        append_grouped(app, &menu, repos, &tags)?;
     }
 
     menu.append(&PredefinedMenuItem::separator(app)?)?;
@@ -170,6 +163,41 @@ fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
     Ok(about)
 }
 
+/// Placeholder shown when no repositories are tracked.
+fn append_empty(app: &AppHandle, menu: &Menu<Wry>) -> Result<()> {
+    let empty = MenuItem::with_id(app, "noop", "No repositories", false, None::<&str>)?;
+    menu.append(&empty)?;
+    Ok(())
+}
+
+/// No tags anywhere — a simple flat list of clickable repositories.
+fn append_flat(app: &AppHandle, menu: &Menu<Wry>, repos: &[Repo]) -> Result<()> {
+    for repo in repos {
+        let id = format!("{REPO_PREFIX}{}", repo.id);
+        let item = MenuItem::with_id(app, id, repo_label(repo), true, None::<&str>)?;
+        menu.append(&item)?;
+    }
+    Ok(())
+}
+
+/// One submenu per tag, plus an "Ungrouped" submenu for untagged repos.
+fn append_grouped(
+    app: &AppHandle,
+    menu: &Menu<Wry>,
+    repos: &[Repo],
+    tags: &[String],
+) -> Result<()> {
+    for tag in tags {
+        let members: Vec<&Repo> = repos.iter().filter(|r| r.tags.contains(tag)).collect();
+        append_group(app, menu, tag, &members)?;
+    }
+    let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
+    if !untagged.is_empty() {
+        append_group(app, menu, UNGROUPED, &untagged)?;
+    }
+    Ok(())
+}
+
 /// Append a tag group as a submenu: "tag (count) ●", containing its repos.
 fn append_group(app: &AppHandle, menu: &Menu<Wry>, tag: &str, members: &[&Repo]) -> Result<()> {
     let unseen = members.iter().any(|r| r.has_unseen);
@@ -181,4 +209,86 @@ fn append_group(app: &AppHandle, menu: &Menu<Wry>, tag: &str, members: &[&Repo])
     }
     menu.append(&submenu)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::db::Repo;
+
+    #[test]
+    fn relative_time_buckets() {
+        let now = 1_000_000;
+        assert_eq!(relative_time_from(now, now), "just now");
+        assert_eq!(relative_time_from(now, now - 59), "just now");
+        assert_eq!(relative_time_from(now, now - 60), "1m ago");
+        assert_eq!(relative_time_from(now, now - 3599), "59m ago");
+        assert_eq!(relative_time_from(now, now - 3600), "1h ago");
+        assert_eq!(relative_time_from(now, now - 86_399), "23h ago");
+        assert_eq!(relative_time_from(now, now - 86_400), "1d ago");
+        assert_eq!(relative_time_from(now, now - 3 * 86_400), "3d ago");
+    }
+
+    #[test]
+    fn relative_time_clamps_future_timestamp() {
+        // Clock skew: ts in the future must not produce a negative/garbage value.
+        assert_eq!(relative_time_from(1_000, 2_000), "just now");
+    }
+
+    #[test]
+    fn status_label_pluralizes_and_handles_no_check() {
+        // No checks yet → no relative time, deterministic.
+        assert_eq!(status_label(&[]), "All up to date · not checked yet");
+
+        let clean = Repo::sample("o", "a"); // sample has no last_checked_at
+        assert_eq!(status_label(&[clean]), "All up to date · not checked yet");
+
+        let mut one = Repo::sample("o", "a");
+        one.has_unseen = true;
+        let head = status_label(std::slice::from_ref(&one));
+        assert!(head.starts_with("1 update · "), "got: {head}");
+
+        let mut two = Repo::sample("o", "b");
+        two.has_unseen = true;
+        let head = status_label(&[one, two]);
+        assert!(head.starts_with("2 updates · "), "got: {head}");
+    }
+
+    #[test]
+    fn repo_label_marks_unseen_and_missing_version() {
+        let mut no_version = Repo::sample("cli", "cli");
+        no_version.latest_version = None;
+        assert_eq!(repo_label(&no_version), "cli/cli — …");
+
+        let mut seen = Repo::sample("cli", "cli");
+        seen.latest_version = Some("v1.2.3".into());
+        assert_eq!(repo_label(&seen), "cli/cli — v1.2.3");
+
+        let mut unseen = Repo::sample("cli", "cli");
+        unseen.latest_version = Some("v1.2.3".into());
+        unseen.has_unseen = true;
+        assert_eq!(repo_label(&unseen), "cli/cli — v1.2.3 ●");
+    }
+
+    #[test]
+    fn distinct_tags_sorts_and_dedups() {
+        let mut a = Repo::sample("o", "a");
+        a.tags = vec!["editors".into(), "build".into()];
+        let mut b = Repo::sample("o", "b");
+        b.tags = vec!["build".into(), "cli".into()];
+        let c = Repo::sample("o", "c"); // sample has no tags
+
+        assert_eq!(
+            distinct_tags(&[a, b, c]),
+            vec!["build".to_string(), "cli".into(), "editors".into()]
+        );
+    }
+
+    #[test]
+    fn distinct_tags_empty_when_no_tags() {
+        let r = Repo::sample("o", "a");
+        assert!(distinct_tags(&[r]).is_empty());
+    }
 }

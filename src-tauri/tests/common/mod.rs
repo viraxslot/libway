@@ -20,6 +20,10 @@ pub type Runtime = tauri::test::MockRuntime;
 /// Build a mock app with a real in-memory DB and the in-scope commands.
 pub fn build_app() -> App<Runtime> {
     let app = mock_builder()
+        // check_all fires a notification on a newly discovered version; without
+        // the plugin registered, that call panics the async command on the mock
+        // runtime. The notification itself is a no-op under the mock runtime.
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             libway_lib::commands::list_repos,
             libway_lib::commands::remove_repo,

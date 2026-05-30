@@ -255,3 +255,77 @@ fn e2e_repos_check_now_updates_version_and_flags_unseen() {
     // update_version sets has_unseen = 1.
     assert_eq!(arr[0]["hasUnseen"], json!(true));
 }
+
+#[test]
+fn e2e_repos_check_now_with_same_version_keeps_repo_seen() {
+    let fake_github = FakeGitHub {
+        exists: Ok(true),
+        latest: Ok((
+            "v1.0.0".to_string(),
+            "https://github.com/o/a/releases/tag/v1.0.0".to_string(),
+            SourceKind::Release,
+        )),
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    let id = common::seed_repo(&app, "o", "a", 100);
+
+    // Seed the same version already seen, with a stale check timestamp.
+    {
+        let db = app.state::<Db>();
+        let conn = db.0.lock().unwrap();
+        dbmod::update_version(&conn, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
+        dbmod::mark_seen(&conn, id).unwrap();
+        dbmod::touch_checked(&conn, id, 5).unwrap();
+    }
+
+    // The fake returns the same version → not a new version, so only the
+    // last-checked timestamp should change.
+    common::invoke(&window, "check_now", json!({})).expect("check_now should succeed");
+
+    let after = common::invoke(&window, "list_repos", json!({})).unwrap();
+    let repo = &after.as_array().unwrap()[0];
+    // Version unchanged and the repo stays seen (an unchanged check must not
+    // re-flag it as unseen).
+    assert_eq!(repo["latestVersion"], json!("v1.0.0"));
+    assert_eq!(repo["hasUnseen"], json!(false));
+    // lastCheckedAt advanced past the stale seed value.
+    let checked = repo["lastCheckedAt"].as_i64().expect("lastCheckedAt set");
+    assert!(
+        checked > 5,
+        "expected a fresh check timestamp, got {checked}"
+    );
+}
+
+#[test]
+fn e2e_repos_check_now_with_newer_version_flags_repo_unseen() {
+    let fake_github = FakeGitHub {
+        exists: Ok(true),
+        latest: Ok((
+            "v2.0.0".to_string(),
+            "https://github.com/o/a/releases/tag/v2.0.0".to_string(),
+            SourceKind::Release,
+        )),
+    };
+    let app = common::build_app_with_github(fake_github);
+    let window = common::main_window(&app);
+
+    let id = common::seed_repo(&app, "o", "a", 100);
+
+    // Known older version, already seen.
+    {
+        let db = app.state::<Db>();
+        let conn = db.0.lock().unwrap();
+        dbmod::update_version(&conn, id, "v1.0.0", "u", SourceKind::Release, 5).unwrap();
+        dbmod::mark_seen(&conn, id).unwrap();
+    }
+
+    common::invoke(&window, "check_now", json!({})).expect("check_now should succeed");
+
+    let after = common::invoke(&window, "list_repos", json!({})).unwrap();
+    let repo = &after.as_array().unwrap()[0];
+    // Upgraded to the newer version and flagged unseen again.
+    assert_eq!(repo["latestVersion"], json!("v2.0.0"));
+    assert_eq!(repo["hasUnseen"], json!(true));
+}

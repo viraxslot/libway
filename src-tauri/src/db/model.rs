@@ -43,3 +43,23 @@ pub struct Repo {
     /// User-assigned tags for grouping (stored as a comma-separated string).
     pub tags: Vec<String>,
 }
+
+#[cfg(test)]
+impl Repo {
+    /// Build a `Repo` for tests. Defaults describe a repo with a known
+    /// release; mutate the fields a given test cares about afterwards
+    /// (mirrors the frontend `makeRepo` helper).
+    pub(crate) fn sample(owner: &str, name: &str) -> Self {
+        Repo {
+            id: 1,
+            owner: owner.to_string(),
+            name: name.to_string(),
+            latest_version: Some("1.0.0".to_string()),
+            latest_url: Some("https://example.com".to_string()),
+            source_kind: Some(SourceKind::Release),
+            has_unseen: false,
+            last_checked_at: None,
+            tags: Vec::new(),
+        }
+    }
+}

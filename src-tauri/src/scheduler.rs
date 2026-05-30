@@ -90,3 +90,65 @@ pub fn spawn(app: &AppHandle) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    fn set(db: &Db, key: &str, value: &str) {
+        let conn = db.0.lock().unwrap();
+        db::set_setting(&conn, key, value).unwrap();
+    }
+
+    #[test]
+    fn interval_defaults_when_unset() {
+        let db = Db::open_in_memory().unwrap();
+        assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
+    }
+
+    #[test]
+    fn interval_reads_valid_value() {
+        let db = Db::open_in_memory().unwrap();
+        set(&db, SETTING_INTERVAL, "30");
+        assert_eq!(interval_minutes(&db), 30);
+    }
+
+    #[test]
+    fn interval_falls_back_on_invalid_value() {
+        let db = Db::open_in_memory().unwrap();
+
+        // Non-numeric: does not parse as u64.
+        set(&db, SETTING_INTERVAL, "not-a-number");
+        assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
+
+        // Zero is filtered out (would spin); a negative parses as invalid u64.
+        set(&db, SETTING_INTERVAL, "0");
+        assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
+
+        set(&db, SETTING_INTERVAL, "-5");
+        assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
+    }
+
+    #[test]
+    fn check_on_startup_defaults_when_unset() {
+        let db = Db::open_in_memory().unwrap();
+        assert_eq!(check_on_startup(&db), DEFAULT_CHECK_ON_STARTUP);
+    }
+
+    #[test]
+    fn check_on_startup_reads_flag() {
+        let db = Db::open_in_memory().unwrap();
+
+        set(&db, SETTING_CHECK_ON_STARTUP, "1");
+        assert!(check_on_startup(&db));
+
+        set(&db, SETTING_CHECK_ON_STARTUP, "0");
+        assert!(!check_on_startup(&db));
+
+        // Anything other than "1" is treated as false.
+        set(&db, SETTING_CHECK_ON_STARTUP, "yes");
+        assert!(!check_on_startup(&db));
+    }
+}
