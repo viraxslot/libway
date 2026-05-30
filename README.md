@@ -8,9 +8,11 @@ about and notifies you about new releases.
   10 minutes): first the latest release (`releases/latest`), falling back to
   the latest tag when there are no releases.
 - Native notifications when a new version ships.
-- The tray menu shows current versions; clicking opens the release page.
+- The tray menu shows a status line (update count + last-checked time) and the
+  current versions; clicking an entry opens the release page.
+- Repositories can be tagged; the tray groups them into per-tag submenus.
 - A settings window with two tabs: Repositories (add with validation, search,
-  remove) and Settings (token, check interval, check-on-startup, autostart).
+  tag, remove) and Settings (token, check interval, check-on-startup, autostart).
 
 ## Stack
 
@@ -30,7 +32,8 @@ src/                React + TS (settings window)
 src-tauri/src/
   lib.rs            app setup, state, window events
   commands.rs       commands invoked from the UI
-  db.rs             SQLite: schema + CRUD
+  db.rs             SQLite: Repo model + CRUD
+  migrations.rs     versioned schema migrations (PRAGMA user_version)
   keychain.rs       token in the Keychain
   github.rs         GitHub API: existence check, releases → tags, comparison
   checker.rs        core check logic (shared by command and scheduler)
@@ -115,4 +118,8 @@ will be stored in the Keychain.
   Settings tab.
 - Launch at login is toggled in the settings (`tauri-plugin-autostart`,
   Login Items).
+- Tags group repositories in the tray; untagged repos fall under "Ungrouped",
+  and with no tags at all the tray shows a flat list.
+- Schema changes are append-only migrations in `src-tauri/src/migrations.rs`
+  (add a new SQL entry to `MIGRATIONS`; the array index is the version).
 
