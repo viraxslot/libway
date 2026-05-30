@@ -27,26 +27,10 @@ Either:
 ## Structure
 
 ```
-src/                React + TS (settings window)
-  api.ts            wrappers over Tauri invoke()
-  components/       RepositoriesTab, SettingsTab and their parts
-                    (AddRepoForm, RepoList, RepoRow, ConfirmDialog,
-                     TokenSettings, IntervalSettings, AutostartSettings)
-src-tauri/src/
-  lib.rs            app setup, state, window events
-  commands.rs       commands invoked from the UI
-  db.rs             SQLite: Repo model + CRUD
-  migrations.rs     versioned schema migrations (PRAGMA user_version)
-  keychain.rs       token in the Keychain
-  github.rs         GitHub API: existence check, releases → tags, comparison
-  checker.rs        core check logic (shared by command and scheduler)
-  scheduler.rs      background checking loop
-  tray.rs           tray menu and indicator
-  notify.rs         native notifications
-scripts/build-mac.sh     build the .app (no install)
-scripts/install-mac.sh   build the .app and install it into /Applications
-scripts/check-versions.sh  assert the version matches across config files
-scripts/retag.sh         move a tag onto the current HEAD (local + remote)
+src/             React + TS frontend (settings window)
+src-tauri/src/   Rust backend: commands, SQLite, GitHub
+                 API, scheduler, tray, notifications
+scripts/         build, install and release helpers
 ```
 
 Data: `~/Library/Application Support/com.libway.tracker/libway.db`.
