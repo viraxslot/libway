@@ -1,4 +1,4 @@
-## [unreleased]
+## [0.1.0] - 2026-05-30
 
 ### 🚀 Features
 
@@ -9,6 +9,7 @@
 - Generate CHANGELOG.md from conventional commits with git-cliff
 - Launch the app after install:mac
 - Normal-color About info and a link indicator
+- Add retag script to move a tag onto HEAD
 
 ### 🐛 Bug Fixes
 
@@ -19,6 +20,10 @@
 - Preserve tag case, dedupe case-insensitively
 - Drop the stray divider above the Settings tab
 - Show a literal ampersand in the About authors line
+- Brace $TAG before the ellipsis in release-publish
+- Build the release DMG non-interactively
+- Use git-cliff changelog as the GitHub release notes
+- Use ASCII in script messages to avoid unbound-variable errors
 
 ### 🚜 Refactor
 
@@ -29,6 +34,7 @@
 - Mention commitlint commit-msg hook in README
 - Update README for tags, tray grouping and migrations
 - Document tray About, build:mac and version check in README
+- Regenerate CHANGELOG.md
 
 ### ⚙️ Miscellaneous Tasks
 
