@@ -14,6 +14,7 @@
     "build:mac": "bash scripts/build-mac.sh",
     "install:mac": "bash scripts/install-mac.sh",
     "check:versions": "bash scripts/check-versions.sh",
+    "changelog": "git-cliff --output CHANGELOG.md",
     "release:version": "bash scripts/release-version.sh",
     "release:publish": "bash scripts/release-publish.sh",
     "lint": "biome check src",

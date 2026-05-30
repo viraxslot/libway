@@ -1,20 +1,11 @@
 # libway
 
-A macOS menu-bar utility that tracks the versions of GitHub tools you care
-about and notifies you about new releases.
+A macOS menu-bar utility that periodically checks a list of GitHub
+repositories and notifies you about new releases. It lives in the tray
+(no Dock icon), groups repositories by tag, and is managed from a small
+settings window.
 
-- Lives in the menu bar (tray), with no Dock icon.
-- Periodically checks a list of repositories (interval configurable, default
-  10 minutes): first the latest release (`releases/latest`), falling back to
-  the latest tag when there are no releases.
-- Native notifications when a new version ships.
-- The tray menu shows a status line (update count + last-checked time) and the
-  current versions; clicking an entry opens the release page.
-- Repositories can be tagged; the tray groups them into per-tag submenus.
-- An About submenu in the tray shows the version, authors and a link to the
-  repository.
-- A settings window with two tabs: Repositories (add with validation, search,
-  tag, remove) and Settings (token, check interval, check-on-startup, autostart).
+See [CHANGELOG.md](CHANGELOG.md) for the history of changes.
 
 ## Stack
 
@@ -57,7 +48,7 @@ Token: Keychain, service `libway`, account `github-token`.
   the Node version is additionally enforced by `engines` in `package.json`.
 
 ```bash
-mise install          # installs the pinned Node (24) and Rust (1.96)
+mise install          # installs the pinned Node (24), Rust (1.96), git-cliff
 # without mise: ensure `node -v` >= 24 and `rustc --version` >= 1.96
 ```
 
@@ -100,7 +91,9 @@ npm run release:publish
 ```
 
 `release:version` bumps the version in package.json, tauri.conf.json and
-Cargo.toml, then commits and tags it. `release:publish` builds a `.dmg`,
+Cargo.toml, regenerates `CHANGELOG.md` from the Conventional Commits with
+[git-cliff](https://git-cliff.org), then commits and tags it. Run
+`npm run changelog` to regenerate it manually. `release:publish` builds a `.dmg`,
 pushes the commit and tag, and creates a GitHub release with auto-generated
 notes (requires the `gh` CLI). The `.dmg` is unsigned, so first launch needs
 right-click → Open to get past Gatekeeper.

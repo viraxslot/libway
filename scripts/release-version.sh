@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bump the app version across package.json, tauri.conf.json and Cargo.toml,
-# then commit and tag it. Usage:
+# regenerate CHANGELOG.md, then commit and tag it. Usage:
 #   npm run release:version -- patch | minor | major | X.Y.Z
 set -euo pipefail
 
@@ -35,8 +35,12 @@ perl -i -pe 'if (!$done && /^version = ".*"/) { s/^version = ".*"/version = "'"$
 # Refresh Cargo.lock so the new version is recorded.
 cargo update -p libway --manifest-path src-tauri/Cargo.toml >/dev/null 2>&1 || true
 
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
-git commit -m "Release v$VERSION"
+# Regenerate the changelog, attributing unreleased commits to this version.
+# --tag labels the not-yet-created tag so the new section is titled correctly.
+git-cliff --tag "v$VERSION" --output CHANGELOG.md
+
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
+git commit -m "chore(release): v$VERSION"
 git tag "v$VERSION"
 
 echo "Committed and tagged v$VERSION."
