@@ -203,7 +203,9 @@ fn about_submenu(app: &AppHandle) -> Result<Submenu<Wry>> {
     about.append(&MenuItem::with_id(
         app,
         "about_authors",
-        "By Alexander Vershinin & Claude",
+        // "&&" renders as a literal "&"; a single "&" is treated as a
+        // mnemonic accelerator by the native menu and would be hidden.
+        "By Alexander Vershinin && Claude",
         false,
         None::<&str>,
     )?)?;
