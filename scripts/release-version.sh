@@ -35,17 +35,12 @@ perl -i -pe 'if (!$done && /^version = ".*"/) { s/^version = ".*"/version = "'"$
 # Refresh Cargo.lock so the new version is recorded.
 cargo update -p libway --manifest-path src-tauri/Cargo.toml >/dev/null 2>&1 || true
 
-# Pick a deterministic codename for this version; cliff.toml renders it via
-# get_env into the changelog heading.
-RELEASE_CODENAME="$(cargo run --quiet --manifest-path tools/codename/Cargo.toml -- "v$VERSION")"
-export RELEASE_CODENAME
-echo "Codename: $RELEASE_CODENAME"
-
 # Regenerate the changelog, attributing unreleased commits to this version.
 # --tag labels the not-yet-created tag so the new section is titled correctly.
-git-cliff --tag "v$VERSION" --output CHANGELOG.md
+# scripts/changelog.sh derives each release's codename from its own version.
+bash scripts/changelog.sh --tag "v$VERSION"
 
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
+git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
 git commit -m "chore(release): v$VERSION"
 git tag "v$VERSION"
 

@@ -22,6 +22,16 @@ export function setRepoTags(id: number, tags: string[]): Promise<Repo[]> {
   return invoke<Repo[]>("set_repo_tags", { id, tags });
 }
 
+/** Rename a tag across all repos. Merges if the new name already exists. Returns the updated list. */
+export function renameTag(from: string, to: string): Promise<Repo[]> {
+  return invoke<Repo[]>("rename_tag", { from, to });
+}
+
+/** Remove a tag from all repos. Returns the updated list. */
+export function deleteTag(tag: string): Promise<Repo[]> {
+  return invoke<Repo[]>("delete_tag", { tag });
+}
+
 export function markSeen(id: number): Promise<void> {
   return invoke("mark_seen", { id });
 }
