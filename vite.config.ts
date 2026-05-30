@@ -19,6 +19,8 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    // Reset mock call history between tests so per-test assertions stay isolated.
+    clearMocks: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
@@ -27,6 +29,7 @@ export default defineConfig({
       exclude: [
         "src/**/*.test.{ts,tsx}",
         "src/test-setup.ts",
+        "src/test-utils/**",
         "src/main.tsx",
         "src/vite-env.d.ts",
       ],
