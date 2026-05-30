@@ -187,8 +187,8 @@ fn build_menu(app: &AppHandle, repos: &[Repo], any_unseen: bool) -> Result<Menu<
         None::<&str>,
     )?)?;
     menu.append(&MenuItem::with_id(app, ID_SETTINGS, "Settings…", true, None::<&str>)?)?;
-    menu.append(&about_submenu(app)?)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&about_submenu(app)?)?;
     menu.append(&MenuItem::with_id(app, ID_QUIT, "Quit", true, None::<&str>)?)?;
 
     Ok(menu)
