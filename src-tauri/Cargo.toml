@@ -1,6 +1,6 @@
 [package]
 name = "libway"
-version = "0.2.1"
+version = "0.3.0"
 description = "Menu-bar tracker for GitHub tool release versions on macOS"
 authors = ["Alexander Vershinin"]
 edition = "2021"

@@ -1,3 +1,44 @@
+## [0.3.0] "Clever Moose" - 2026-05-30
+
+### 🚀 Features
+
+- List repositories most recently added first
+
+### 🚜 Refactor
+
+- Split components into ui/ and features/, add @/ alias
+- Extract UI primitives and enforce block statements
+- Make Tabs/Tab generic over the tab id type
+- Decouple commands from the tray to make the backend testable
+- Split commands into per-topic submodules
+- Split db/tray modules and centralize event names
+
+### 📚 Documentation
+
+- Generalise structure section in README
+- Add CLAUDE.md with git confirmation rules
+
+### 🎨 Styling
+
+- Apply rustfmt to the Rust crate
+
+### 🧪 Testing
+
+- Set up Vitest and add a Button test
+- Add coverage tooling and tests for the remaining UI primitives
+- Cover business components with unit tests
+- Add backend e2e tests over the real IPC boundary
+- Mock the GitHub network layer to e2e-test add_repo and check_now
+
+### ⚙️ Miscellaneous Tasks
+
+- Drive all pre-commit checks through lint-staged
+- Add GitHub Actions workflow for lint, build and tests
+- Limit unnecessary runs, tighten permissions, bump checkout
+- Report backend test results in the run summary
+- Run backend tests with nextest and prettier assertions
+- Allow manual workflow runs via workflow_dispatch
+
 ## [0.2.1] "Wandering Stoat" - 2026-05-30
 
 ### 🐛 Bug Fixes
