@@ -23,4 +23,7 @@ LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchS
 [ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$DEST" || true
 
 echo "Installed ${DEST}"
-echo "Launch it from Spotlight (⌘Space → libway) or: open \"$DEST\""
+
+# Launch the freshly installed app.
+open "$DEST"
+echo "Launched ${DEST}"
