@@ -15,6 +15,7 @@ mod selfupdate;
 mod tray;
 mod util;
 mod version;
+mod i18n;
 
 use std::error::Error;
 

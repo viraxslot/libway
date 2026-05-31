@@ -38,6 +38,8 @@ async-trait = "0.1"
 # Concurrent stream combinators (buffer_unordered) for parallel checks.
 futures = { version = "0.3", default-features = false, features = ["std"] }
 
+sys-locale = "0.3.2"
+
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 # Colored, line-by-line diffs on assert_eq! failures.
