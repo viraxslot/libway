@@ -23,6 +23,10 @@ Read-only and staging operations are fine without asking: `git status`,
 When I do ask for a commit or push, briefly summarize what will be
 committed/pushed first.
 
+Keep commit messages short: the subject line must be at most 10 words.
+Don't add an explanatory body unless I ask for one — no multi-paragraph
+rationale.
+
 Do not proactively offer to commit or push. Don't end responses with
 "commit?" / "push?" or similar prompts — I will tell you explicitly when I
 want either. Just stop after the work is done.

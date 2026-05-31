@@ -1,3 +1,17 @@
+## [unreleased]
+
+### 🚀 Features
+
+- *(checker)* Check repositories concurrently with rate-limit handling
+
+### 🐛 Bug Fixes
+
+- *(github)* Cache the Keychain token to avoid repeated access prompts
+
+### 📚 Documentation
+
+- Cap commit subject at 10 words
+
 ## [0.4.1] "Hidden Owl" - 2026-05-31
 
 ### 🚀 Features
