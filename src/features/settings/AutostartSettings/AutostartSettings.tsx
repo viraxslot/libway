@@ -20,6 +20,7 @@ export default function AutostartSettings() {
 
   return (
     <section className="autostart">
+      <h2>System</h2>
       <Checkbox checked={enabled} onChange={toggle} label="Launch at login" />
     </section>
   );
