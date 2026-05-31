@@ -5,6 +5,8 @@
 //! tag from `tags`. Version comparison uses semver, with a fallback to string
 //! comparison for tags that do not parse as semver.
 
+use std::time::Duration;
+
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -14,7 +16,6 @@ use crate::http;
 use crate::keychain;
 
 const API_BASE: &str = "https://api.github.com";
-const USER_AGENT: &str = "libway";
 
 /// A discovered version of a tool.
 #[derive(Debug, Clone)]
@@ -40,10 +41,12 @@ struct TagResponse {
 /// Build the configured GitHub client. The token (if any) raises rate limits.
 fn client(token: Option<&str>) -> Result<http::Client> {
     http::Client::builder(API_BASE)
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", http::DEFAULT_USER_AGENT)
         .header("Accept", "application/vnd.github+json")
         .header("X-GitHub-Api-Version", "2022-11-28")
         .bearer(token)
+        .max_retries(RealGitHub::MAX_RETRIES)
+        .max_retry_delay(RealGitHub::MAX_RETRY_DELAY)
         .build()
 }
 
@@ -119,6 +122,11 @@ pub trait GitHubApi: Send + Sync {
 pub struct RealGitHub;
 
 impl RealGitHub {
+    /// Retry policy for GitHub's rate limit: a few attempts, but never wait
+    /// longer than this even when the reported reset window is far out.
+    const MAX_RETRIES: u32 = 3;
+    const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
+
     pub fn new() -> Self {
         RealGitHub
     }

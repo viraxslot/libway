@@ -35,6 +35,8 @@ semver = "1"
 # Misc helpers
 anyhow = "1"
 async-trait = "0.1"
+# Concurrent stream combinators (buffer_unordered) for parallel checks.
+futures = { version = "0.3", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

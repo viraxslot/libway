@@ -1,17 +1,25 @@
 //! Reusable HTTP client over reqwest: configured once via a builder, then used
 //! for typed GET requests. Source-agnostic — no API specifics live here.
 
+use std::time::Duration;
+
 use anyhow::{anyhow, Context, Result};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION};
+use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 
 /// How much of an error response body to include in error messages.
 const MAX_ERROR_BODY: usize = 200;
 
+/// User-Agent identifying this app on every outgoing request.
+pub const DEFAULT_USER_AGENT: &str = "libway";
+
 /// A configured HTTP client. Build one with [`Client::builder`].
 pub struct Client {
     inner: reqwest::Client,
     base_url: String,
+    max_retries: u32,
+    max_retry_delay: Duration,
 }
 
 /// Accumulates configuration for a [`Client`]. Header-construction errors are
@@ -19,6 +27,8 @@ pub struct Client {
 pub struct ClientBuilder {
     base_url: String,
     headers: HeaderMap,
+    max_retries: u32,
+    max_retry_delay: Duration,
     error: Option<anyhow::Error>,
 }
 
@@ -28,6 +38,8 @@ impl Client {
         ClientBuilder {
             base_url: base_url.into(),
             headers: HeaderMap::new(),
+            max_retries: ClientBuilder::DEFAULT_MAX_RETRIES,
+            max_retry_delay: ClientBuilder::DEFAULT_MAX_RETRY_DELAY,
             error: None,
         }
     }
@@ -35,13 +47,26 @@ impl Client {
     /// Issue a GET to `path` appended to the base URL and return the response.
     /// `path` is concatenated directly, so it must start with `/` (and the base
     /// URL must not end with one). Network failures carry a contextual message.
+    /// Rate-limited responses are retried up to `max_retries` times.
     async fn send(&self, path: &str) -> Result<reqwest::Response> {
         let url = format!("{}{path}", self.base_url);
-        self.inner
-            .get(&url)
-            .send()
-            .await
-            .with_context(|| format!("GET {url} failed"))
+        let mut attempt = 0;
+        loop {
+            let resp = self
+                .inner
+                .get(&url)
+                .send()
+                .await
+                .with_context(|| format!("GET {url} failed"))?;
+
+            if attempt >= self.max_retries || !is_rate_limited(&resp) {
+                return Ok(resp);
+            }
+            let delay =
+                retry_delay(resp.headers(), crate::util::now_unix()).min(self.max_retry_delay);
+            tokio::time::sleep(delay).await;
+            attempt += 1;
+        }
     }
 
     /// Turn a non-success response into an error that includes the status and a
@@ -97,6 +122,12 @@ impl Client {
 }
 
 impl ClientBuilder {
+    /// Default retry budget for rate-limited responses.
+    const DEFAULT_MAX_RETRIES: u32 = 3;
+    /// Default cap on a single retry wait, so a long server-reported reset
+    /// window can't stall a request.
+    const DEFAULT_MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
+
     /// Add a default header sent on every request. An invalid name/value is
     /// remembered and surfaced from [`build`].
     pub fn header(mut self, name: &str, value: &str) -> Self {
@@ -133,6 +164,18 @@ impl ClientBuilder {
         self
     }
 
+    /// How many times to retry a rate-limited response before returning it.
+    pub fn max_retries(mut self, retries: u32) -> Self {
+        self.max_retries = retries;
+        self
+    }
+
+    /// Cap on a single retry wait, regardless of the server's reset window.
+    pub fn max_retry_delay(mut self, delay: Duration) -> Self {
+        self.max_retry_delay = delay;
+        self
+    }
+
     /// Finish building. Fails if any header (or the token) was invalid, or if
     /// the underlying reqwest client cannot be constructed.
     pub fn build(self) -> Result<Client> {
@@ -146,8 +189,45 @@ impl ClientBuilder {
         Ok(Client {
             inner,
             base_url: self.base_url,
+            max_retries: self.max_retries,
+            max_retry_delay: self.max_retry_delay,
         })
     }
+}
+
+/// Whether a response indicates a GitHub rate limit. GitHub returns 429, or
+/// 403 with `X-RateLimit-Remaining: 0`, when the limit is exhausted.
+fn is_rate_limited(resp: &reqwest::Response) -> bool {
+    if resp.status() == StatusCode::TOO_MANY_REQUESTS {
+        return true;
+    }
+    resp.status() == StatusCode::FORBIDDEN
+        && resp
+            .headers()
+            .get("x-ratelimit-remaining")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.trim() == "0")
+            .unwrap_or(false)
+}
+
+/// Retry wait from the response headers: `Retry-After` (delta seconds) wins
+/// over `X-RateLimit-Reset` (absolute unix time); 1s if neither parses. The
+/// caller caps the result.
+fn retry_delay(headers: &HeaderMap, now_unix: u64) -> Duration {
+    let header_secs = |name: &str| {
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<u64>().ok())
+    };
+
+    if let Some(secs) = header_secs("retry-after") {
+        return Duration::from_secs(secs);
+    }
+    if let Some(reset) = header_secs("x-ratelimit-reset") {
+        return Duration::from_secs(reset.saturating_sub(now_unix));
+    }
+    Duration::from_secs(1)
 }
 
 #[cfg(test)]
@@ -199,5 +279,45 @@ mod tests {
             .bearer(Some("tok"))
             .build();
         assert!(ok.is_ok());
+    }
+
+    fn map(pairs: &[(&str, &str)]) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        for (k, v) in pairs {
+            h.insert(
+                HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                HeaderValue::from_str(v).unwrap(),
+            );
+        }
+        h
+    }
+
+    #[test]
+    fn retry_after_takes_precedence() {
+        let h = map(&[("retry-after", "12"), ("x-ratelimit-reset", "9999999999")]);
+        assert_eq!(retry_delay(&h, 1000), Duration::from_secs(12));
+    }
+
+    #[test]
+    fn reset_is_relative_to_now() {
+        let h = map(&[("x-ratelimit-reset", "1050")]);
+        assert_eq!(retry_delay(&h, 1000), Duration::from_secs(50));
+    }
+
+    #[test]
+    fn reset_in_the_past_is_zero() {
+        let h = map(&[("x-ratelimit-reset", "900")]);
+        assert_eq!(retry_delay(&h, 1000), Duration::from_secs(0));
+    }
+
+    #[test]
+    fn no_headers_defaults_to_one_second() {
+        assert_eq!(retry_delay(&HeaderMap::new(), 1000), Duration::from_secs(1));
+    }
+
+    #[test]
+    fn unparseable_header_falls_back() {
+        let h = map(&[("retry-after", "soon")]);
+        assert_eq!(retry_delay(&h, 1000), Duration::from_secs(1));
     }
 }
