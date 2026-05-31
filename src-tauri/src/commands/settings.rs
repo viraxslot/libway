@@ -7,6 +7,7 @@ use crate::checker;
 use crate::db::{self, Db, Repo, SettingKey};
 use crate::events::Event;
 use crate::github;
+use crate::i18n::Language;
 use crate::scheduler;
 use crate::selfupdate::{self, SelfUpdate};
 
@@ -76,4 +77,16 @@ pub async fn check_now<R: tauri::Runtime>(
         .await
         .map_err(e)?;
     db.with(db::list_repos).map_err(e)
+}
+
+#[tauri::command]
+pub fn get_language(db: State<'_, Db>) -> Result<String, String> {
+    let lang = Language::from_settings(&db);
+    Ok(lang.as_code().to_string())
+}
+
+#[tauri::command]
+pub fn set_language(db: State<'_, Db>, value: &str) -> Result<(), String> {
+    db.with(|c| db::set_setting(c, SettingKey::Language, value))
+        .map_err(e)
 }

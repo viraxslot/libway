@@ -1,4 +1,4 @@
-import AutostartSettings from "@/features/settings/AutostartSettings/AutostartSettings";
+import SystemSettings from "@/features/settings/SystemSettings/SystemSettings";
 import TokenSettings from "@/features/settings/TokenSettings/TokenSettings";
 import UpdateSettings from "@/features/settings/UpdateSettings/UpdateSettings";
 
@@ -8,7 +8,7 @@ export default function SettingsTab() {
     <div className="tab-panel">
       <TokenSettings />
       <UpdateSettings />
-      <AutostartSettings />
+      <SystemSettings />
     </div>
   );
 }

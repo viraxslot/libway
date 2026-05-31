@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { clearToken, hasToken, setToken } from "@/api";
 import Button from "@/components/ui/Button/Button";
 import Input from "@/components/ui/Input/Input";
@@ -8,6 +9,7 @@ export default function TokenSettings() {
   const [stored, setStored] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     hasToken()
@@ -38,10 +40,12 @@ export default function TokenSettings() {
 
   return (
     <section className="token">
-      <h2>GitHub token</h2>
+      <h2>{t("settings.tokenHeader")}</h2>
       <p className="muted">
-        Stored in the Keychain. Used for higher API rate limits.
-        {stored ? " Token saved." : " No token set."}
+        {t("settings.tokenDescription")}
+        {stored
+          ? ` ${t("settings.tokenSaved")}`
+          : ` ${t("settings.tokenNotSet")}`}
       </p>
       <div className="token-row">
         <Input
@@ -53,7 +57,7 @@ export default function TokenSettings() {
           spellCheck={false}
         />
         <Button type="button" onClick={save} disabled={busy || !value.trim()}>
-          Save
+          {t("settings.saveToken")}
         </Button>
         {stored && (
           <Button
@@ -62,7 +66,7 @@ export default function TokenSettings() {
             onClick={remove}
             disabled={busy}
           >
-            Remove
+            {t("settings.removeToken")}
           </Button>
         )}
       </div>

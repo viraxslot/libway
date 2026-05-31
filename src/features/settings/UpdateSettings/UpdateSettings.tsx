@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getCheckInterval,
   getCheckOnStartup,
@@ -19,6 +20,7 @@ export default function UpdateSettings() {
   const [busy, setBusy] = useState(false);
   const [onStartup, setOnStartup] = useState(true);
   const [selfUpdate, setSelfUpdate] = useState(true);
+  const { t } = useTranslation();
 
   useEffect(() => {
     getCheckInterval()
@@ -66,7 +68,7 @@ export default function UpdateSettings() {
 
   return (
     <section className="interval">
-      <h2>Check interval</h2>
+      <h2>{t("settings.updateHeader")}</h2>
       <div className="interval-row">
         <Input
           type="number"
@@ -76,24 +78,24 @@ export default function UpdateSettings() {
           onChange={(e) => setValue(e.target.value)}
           disabled={busy}
         />
-        <span className="muted">minutes</span>
+        <span className="muted">{t("settings.intervalLabel")}</span>
         <Button
           type="button"
           onClick={save}
           disabled={busy || !valid || !dirty}
         >
-          Save
+          {t("settings.saveInterval")}
         </Button>
       </div>
       <Checkbox
         checked={onStartup}
         onChange={toggleOnStartup}
-        label="Check on startup"
+        label={t("settings.checkOnStartup")}
       />
       <Checkbox
         checked={selfUpdate}
         onChange={toggleSelfUpdate}
-        label="Check for app updates"
+        label={t("settings.checkAppUpdates")}
       />
     </section>
   );

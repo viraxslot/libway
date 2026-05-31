@@ -30,6 +30,20 @@ describe("TagsTab", () => {
     expect(screen.getByText("1 repo")).toBeInTheDocument();
   });
 
+  it("pluralizes the repo count for tags on multiple repos", () => {
+    render(
+      <TagsTab
+        repos={[
+          makeRepo({ id: 1, tags: ["ci"] }),
+          makeRepo({ id: 2, tags: ["ci"] }),
+        ]}
+        onRenameTag={vi.fn()}
+        onDeleteTag={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("2 repos")).toBeInTheDocument();
+  });
+
   it("confirms before deleting a tag", async () => {
     const onDeleteTag = vi.fn().mockResolvedValue(undefined);
     render(
@@ -41,11 +55,11 @@ describe("TagsTab", () => {
     );
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Delete tag ci" }),
+      screen.getByRole("button", { name: "Remove tag ci" }),
     );
-    expect(screen.getByText("Delete tag")).toBeInTheDocument();
+    expect(screen.getByText("Remove tag")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(onDeleteTag).toHaveBeenCalledWith("ci");
   });
 

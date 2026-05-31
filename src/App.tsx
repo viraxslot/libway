@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   addRepo,
   checkNow,
@@ -26,6 +27,7 @@ export default function App() {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [checking, setChecking] = useState(false);
   const [tab, setTab] = useState<TabId>("repositories");
+  const { t } = useTranslation();
 
   const reload = useCallback(async () => {
     setRepos(await listRepos());
@@ -86,7 +88,7 @@ export default function App() {
   return (
     <main className="app">
       <header className="app-header">
-        <h1>libway</h1>
+        <h1>{t("header.title")}</h1>
         <div className="header-actions">
           <Button
             type="button"
@@ -94,18 +96,18 @@ export default function App() {
             onClick={handleMarkAll}
             disabled={!anyUnseen}
           >
-            Mark all as read
+            {t("header.markAllAsRead")}
           </Button>
           <Button type="button" onClick={handleCheckNow} disabled={checking}>
-            {checking ? "Checking…" : "Check now"}
+            {checking ? t("header.checking") : t("header.checkNow")}
           </Button>
         </div>
       </header>
 
       <Tabs value={tab} onChange={setTab}>
-        <Tab value="repositories">Repositories</Tab>
-        <Tab value="tags">Tags</Tab>
-        <Tab value="settings">Settings</Tab>
+        <Tab value="repositories">{t("tabs.repositories")}</Tab>
+        <Tab value="tags">{t("tabs.tags")}</Tab>
+        <Tab value="settings">{t("tabs.settings")}</Tab>
       </Tabs>
 
       {tab === "repositories" && (

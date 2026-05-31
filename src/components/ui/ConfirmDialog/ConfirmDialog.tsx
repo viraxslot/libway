@@ -4,8 +4,8 @@ import Button from "@/components/ui/Button/Button";
 interface Props {
   title: string;
   message: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  confirmLabel: string;
+  cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -18,8 +18,8 @@ interface Props {
 export default function ConfirmDialog({
   title,
   message,
-  confirmLabel = "Delete",
-  cancelLabel = "Cancel",
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: Props) {

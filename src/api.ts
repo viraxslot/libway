@@ -2,7 +2,7 @@
 // Keeping them in one place gives the UI a typed, named API.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Repo } from "@/types";
+import type { LanguageChoice, Repo } from "@/types";
 
 export function listRepos(): Promise<Repo[]> {
   return invoke<Repo[]>("list_repos");
@@ -45,7 +45,7 @@ export function checkNow(): Promise<Repo[]> {
   return invoke<Repo[]>("check_now");
 }
 
-// --- Check interval ---
+// --- Settings ---
 
 export function getCheckInterval(): Promise<number> {
   return invoke<number>("get_check_interval");
@@ -70,6 +70,14 @@ export function getCheckSelfUpdate(): Promise<boolean> {
 
 export function setCheckSelfUpdate(enabled: boolean): Promise<void> {
   return invoke("set_check_self_update", { enabled });
+}
+
+export function getLanguage(): Promise<LanguageChoice> {
+  return invoke("get_language");
+}
+
+export function setLanguage(value: string): Promise<void> {
+  return invoke("set_language", { value });
 }
 
 // --- GitHub token (stored in the Keychain) ---

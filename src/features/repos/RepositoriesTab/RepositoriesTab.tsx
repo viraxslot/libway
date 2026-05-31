@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import Input from "@/components/ui/Input/Input";
 import AddRepoForm from "@/features/repos/AddRepoForm/AddRepoForm";
@@ -24,6 +25,7 @@ export default function RepositoriesTab({
   const [query, setQuery] = useState("");
   // The repo pending deletion confirmation, or null.
   const [pendingDelete, setPendingDelete] = useState<Repo | null>(null);
+  const { t } = useTranslation();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -53,7 +55,7 @@ export default function RepositoriesTab({
         <Input
           type="search"
           variant="search"
-          placeholder="Search repositories…"
+          placeholder={t("repos.searchRepos")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           spellCheck={false}
@@ -62,7 +64,9 @@ export default function RepositoriesTab({
       )}
 
       {repos.length > 0 && filtered.length === 0 ? (
-        <p className="muted empty">No repositories match “{query}”.</p>
+        <p className="muted empty">
+          {t("repos.noMatch")} “{query}”.
+        </p>
       ) : (
         <RepoList
           repos={filtered}
@@ -76,9 +80,10 @@ export default function RepositoriesTab({
 
       {pendingDelete && (
         <ConfirmDialog
-          title="Remove repository"
-          message={`Stop tracking ${repoFullName(pendingDelete)}?`}
-          confirmLabel="Remove"
+          title={t("repos.removeTitle")}
+          message={`${t("repos.removeMessage1")} ${repoFullName(pendingDelete)}?`}
+          confirmLabel={t("repos.confirmRemove")}
+          cancelLabel={t("repos.cancelRemove")}
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
         />

@@ -91,6 +91,25 @@ input[type="password"] {
   min-width: 0;
 }
 
+select.dropdown {
+  font: inherit;
+  padding: 6px 28px 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236e6e73' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+select.dropdown:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .muted {
   color: var(--muted);
 }
@@ -279,6 +298,17 @@ input.tag-input {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.language-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-field > span {
+  color: var(--muted);
 }
 
 /* Interval */

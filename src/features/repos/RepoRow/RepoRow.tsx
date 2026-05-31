@@ -1,5 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { type KeyboardEvent, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Button from "@/components/ui/Button/Button";
 import IconButton from "@/components/ui/IconButton/IconButton";
 import Input from "@/components/ui/Input/Input";
@@ -24,6 +25,7 @@ function formatChecked(ts: number | null): string {
 export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
   const name = repoFullName(repo);
   const [newTag, setNewTag] = useState("");
+  const { t } = useTranslation();
 
   async function open() {
     if (repo.latestUrl) {
@@ -67,7 +69,7 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
       <div className="repo-top">
         <div className="repo-main">
           <span className="repo-name">{name}</span>
-          {repo.hasUnseen && <span className="badge">new</span>}
+          {repo.hasUnseen && <span className="badge">{t("repos.new")}</span>}
         </div>
         <div className="repo-meta">
           {repo.latestVersion ? (
@@ -75,17 +77,17 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
               variant="link"
               type="button"
               onClick={open}
-              title="Open release page"
+              title={t("repos.openReleasePage")}
             >
               {repo.latestVersion}
               {repo.sourceKind === "tag" && (
-                <span className="tag-mark"> (tag)</span>
+                <span className="tag-mark"> {t("repos.tag")}</span>
               )}
             </Button>
           ) : (
-            <span className="muted">not checked yet</span>
+            <span className="muted">{t("repos.notCheckedYet")}</span>
           )}
-          <span className="checked" title="Last checked">
+          <span className="checked" title={t("repos.lastChecked")}>
             {formatChecked(repo.lastCheckedAt)}
           </span>
         </div>
@@ -93,8 +95,8 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
           variant="remove"
           type="button"
           onClick={() => onRemove(repo.id)}
-          title="Remove from list"
-          aria-label="Remove"
+          title={t("repos.removeFromList")}
+          aria-label={t("repos.remove")}
         >
           ✕
         </IconButton>
@@ -108,7 +110,7 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
               variant="chip-remove"
               type="button"
               onClick={() => removeTag(tag)}
-              aria-label={`Remove tag ${tag}`}
+              aria-label={t("repos.removeTagAria", { tag })}
             >
               ×
             </IconButton>
@@ -117,7 +119,7 @@ export default function RepoRow({ repo, onRemove, onSeen, onSetTags }: Props) {
         <Input
           type="text"
           variant="tag"
-          placeholder="+ tag"
+          placeholder={t("repos.addTag")}
           value={newTag}
           onChange={(e) => setNewTag(e.target.value)}
           onKeyDown={onTagKey}

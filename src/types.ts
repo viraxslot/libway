@@ -27,3 +27,5 @@ export interface Repo {
 export function repoFullName(r: Pick<Repo, "owner" | "name">): string {
   return `${r.owner}/${r.name}`;
 }
+
+export type LanguageChoice = "system" | "en" | "ru";

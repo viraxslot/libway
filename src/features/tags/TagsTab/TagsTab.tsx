@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import Button from "@/components/ui/Button/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import IconButton from "@/components/ui/IconButton/IconButton";
@@ -50,6 +51,7 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<Pending | null>(null);
+  const { t } = useTranslation();
 
   function startEdit(name: string) {
     setEditing(name);
@@ -114,9 +116,7 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
   if (tags.length === 0) {
     return (
       <div className="tab-panel">
-        <p className="muted empty">
-          No tags yet. Add tags to repositories first.
-        </p>
+        <p className="muted empty">{t("tags.noTagsYet")}</p>
       </div>
     );
   }
@@ -144,20 +144,20 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
                 className="tag-name"
                 type="button"
                 onClick={() => startEdit(tag.name)}
-                title="Rename tag"
+                title={t("tags.renameTag")}
               >
                 {tag.name}
               </Button>
             )}
             <span className="muted tag-count">
-              {tag.count} {tag.count === 1 ? "repo" : "repos"}
+              {t("tags.repoCount", { count: tag.count })}
             </span>
             <IconButton
               variant="remove"
               type="button"
               onClick={() => askDelete(tag.name, tag.count)}
-              title="Delete tag from all repositories"
-              aria-label={`Delete tag ${tag.name}`}
+              title={t("tags.removeTagFromEverywhere")}
+              aria-label={`${t("tags.removeTag")} ${tag.name}`}
             >
               ✕
             </IconButton>
@@ -167,18 +167,27 @@ export default function TagsTab({ repos, onRenameTag, onDeleteTag }: Props) {
 
       {pending?.kind === "merge" && (
         <ConfirmDialog
-          title="Merge tags"
-          message={`Merge “${pending.from}” into “${pending.to}”? ${pending.count} repositories will be affected.`}
-          confirmLabel="Merge"
+          title={t("tags.mergeTitle")}
+          message={t("tags.mergeMessage", {
+            from: pending.from,
+            to: pending.to,
+            count: pending.count,
+          })}
+          confirmLabel={t("tags.confirmMerge")}
+          cancelLabel={t("tags.cancelMerge")}
           onConfirm={confirmPending}
           onCancel={() => setPending(null)}
         />
       )}
       {pending?.kind === "delete" && (
         <ConfirmDialog
-          title="Delete tag"
-          message={`Remove “${pending.tag}” from ${pending.count} ${pending.count === 1 ? "repository" : "repositories"}?`}
-          confirmLabel="Delete"
+          title={t("tags.removeTitle")}
+          message={t("tags.removeMessage", {
+            tag: pending.tag,
+            count: pending.count,
+          })}
+          confirmLabel={t("tags.confirmRemove")}
+          cancelLabel={t("tags.cancelRemove")}
           onConfirm={confirmPending}
           onCancel={() => setPending(null)}
         />

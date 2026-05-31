@@ -19,6 +19,8 @@ describe("ConfirmDialog", () => {
       <ConfirmDialog
         title="Remove repository"
         message="Stop tracking owner/repo?"
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
         onConfirm={() => {}}
         onCancel={() => {}}
       />,
@@ -34,6 +36,7 @@ describe("ConfirmDialog", () => {
         title="t"
         message="m"
         confirmLabel="Remove"
+        cancelLabel="Cancel"
         onConfirm={onConfirm}
         onCancel={() => {}}
       />,
@@ -48,6 +51,8 @@ describe("ConfirmDialog", () => {
       <ConfirmDialog
         title="t"
         message="m"
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
         onConfirm={() => {}}
         onCancel={onCancel}
       />,

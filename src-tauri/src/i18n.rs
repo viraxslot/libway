@@ -15,6 +15,13 @@ impl Language {
         }
     }
 
+    pub fn as_code(&self) -> &str {
+        match self {
+            Language::En => "en",
+            Language::Ru => "ru",
+        }
+    }
+
     fn from_system_locale(locale: &str) -> Language {
         let l = locale.split('-').next().unwrap_or("en");
         Language::parse(l)

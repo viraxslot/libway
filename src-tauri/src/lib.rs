@@ -44,7 +44,7 @@ pub fn run() {
             commands::delete_tag,
             commands::mark_seen,
             commands::mark_all_seen,
-            // Check schedule & on-demand checks
+            // Settings 
             commands::check_now,
             commands::get_check_interval,
             commands::set_check_interval,
@@ -52,6 +52,8 @@ pub fn run() {
             commands::set_check_on_startup,
             commands::get_check_self_update,
             commands::set_check_self_update,
+            commands::get_language,
+            commands::set_language,
             // GitHub token (Keychain)
             commands::has_token,
             commands::set_token,
