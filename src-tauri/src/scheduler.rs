@@ -15,12 +15,8 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::checker;
-use crate::db::{self, Db};
+use crate::db::{self, Db, SettingKey};
 
-/// Settings key holding the check interval in minutes.
-pub const SETTING_INTERVAL: &str = "check_interval_minutes";
-/// Settings key holding whether to check immediately on startup ("0"/"1").
-pub const SETTING_CHECK_ON_STARTUP: &str = "check_on_startup";
 /// Default interval when the setting is unset or invalid.
 pub const DEFAULT_INTERVAL_MINUTES: u64 = 10;
 /// Default for "check on startup" when the setting is unset.
@@ -32,7 +28,7 @@ const TICK_SECS: u64 = 5;
 
 /// Read the configured interval in minutes, falling back to the default.
 pub fn interval_minutes(db: &Db) -> u64 {
-    db.with(|c| db::get_setting(c, SETTING_INTERVAL))
+    db.with(|c| db::get_setting(c, SettingKey::CheckIntervalMinutes))
         .ok()
         .flatten()
         .and_then(|v| v.parse::<u64>().ok())
@@ -42,7 +38,7 @@ pub fn interval_minutes(db: &Db) -> u64 {
 
 /// Read whether to run a check immediately at startup.
 pub fn check_on_startup(db: &Db) -> bool {
-    db.with(|c| db::get_setting(c, SETTING_CHECK_ON_STARTUP))
+    db.with(|c| db::get_setting(c, SettingKey::CheckOnStartup))
         .ok()
         .flatten()
         .map(|v| v == "1")
@@ -132,7 +128,7 @@ mod tests {
 
     use super::*;
 
-    fn set(db: &Db, key: &str, value: &str) {
+    fn set(db: &Db, key: SettingKey, value: &str) {
         db.with(|c| db::set_setting(c, key, value)).unwrap();
     }
 
@@ -145,7 +141,7 @@ mod tests {
     #[test]
     fn interval_reads_valid_value() {
         let db = Db::open_in_memory().unwrap();
-        set(&db, SETTING_INTERVAL, "30");
+        set(&db, SettingKey::CheckIntervalMinutes, "30");
         assert_eq!(interval_minutes(&db), 30);
     }
 
@@ -154,14 +150,14 @@ mod tests {
         let db = Db::open_in_memory().unwrap();
 
         // Non-numeric: does not parse as u64.
-        set(&db, SETTING_INTERVAL, "not-a-number");
+        set(&db, SettingKey::CheckIntervalMinutes, "not-a-number");
         assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
 
         // Zero is filtered out (would spin); a negative parses as invalid u64.
-        set(&db, SETTING_INTERVAL, "0");
+        set(&db, SettingKey::CheckIntervalMinutes, "0");
         assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
 
-        set(&db, SETTING_INTERVAL, "-5");
+        set(&db, SettingKey::CheckIntervalMinutes, "-5");
         assert_eq!(interval_minutes(&db), DEFAULT_INTERVAL_MINUTES);
     }
 
@@ -175,14 +171,14 @@ mod tests {
     fn check_on_startup_reads_flag() {
         let db = Db::open_in_memory().unwrap();
 
-        set(&db, SETTING_CHECK_ON_STARTUP, "1");
+        set(&db, SettingKey::CheckOnStartup, "1");
         assert!(check_on_startup(&db));
 
-        set(&db, SETTING_CHECK_ON_STARTUP, "0");
+        set(&db, SettingKey::CheckOnStartup, "0");
         assert!(!check_on_startup(&db));
 
         // Anything other than "1" is treated as false.
-        set(&db, SETTING_CHECK_ON_STARTUP, "yes");
+        set(&db, SettingKey::CheckOnStartup, "yes");
         assert!(!check_on_startup(&db));
     }
 

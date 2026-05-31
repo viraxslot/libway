@@ -14,8 +14,6 @@ use crate::db::{self, Db};
 use crate::github::{GitHubApi, LatestVersion};
 use crate::version;
 
-/// Settings key holding whether to check for libway's own updates ("0"/"1").
-pub const SETTING_CHECK_SELF_UPDATE: &str = "check_self_update";
 /// Default for the self-update check when the setting is unset.
 pub const DEFAULT_CHECK_SELF_UPDATE: bool = true;
 /// libway's own repository, checked for new releases of the app itself.
@@ -67,7 +65,7 @@ fn evaluate(latest: LatestVersion, current: &str) -> Option<AvailableUpdate> {
 /// Whether the self-update check is enabled (defaults to true when unset).
 /// Mirrors `scheduler::check_on_startup`.
 pub fn enabled(db: &Db) -> bool {
-    db.with(|c| db::get_setting(c, SETTING_CHECK_SELF_UPDATE))
+    db.with(|c| db::get_setting(c, db::SettingKey::SelfUpdate))
         .ok()
         .flatten()
         .map(|v| v == "1")
@@ -101,7 +99,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::db::SourceKind;
+    use crate::db::{SettingKey, SourceKind};
 
     fn latest(version: &str) -> LatestVersion {
         LatestVersion {
@@ -111,7 +109,7 @@ mod tests {
         }
     }
 
-    fn set(db: &Db, key: &str, value: &str) {
+    fn set(db: &Db, key: SettingKey, value: &str) {
         db.with(|c| db::set_setting(c, key, value)).unwrap();
     }
 
@@ -147,13 +145,13 @@ mod tests {
     fn enabled_reads_flag() {
         let db = Db::open_in_memory().unwrap();
 
-        set(&db, SETTING_CHECK_SELF_UPDATE, "1");
+        set(&db, SettingKey::SelfUpdate, "1");
         assert!(enabled(&db));
 
-        set(&db, SETTING_CHECK_SELF_UPDATE, "0");
+        set(&db, SettingKey::SelfUpdate, "0");
         assert!(!enabled(&db));
 
-        set(&db, SETTING_CHECK_SELF_UPDATE, "yes");
+        set(&db, SettingKey::SelfUpdate, "yes");
         assert!(!enabled(&db));
     }
 }

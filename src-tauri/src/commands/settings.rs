@@ -4,7 +4,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use super::e;
 use crate::checker;
-use crate::db::{self, Db, Repo};
+use crate::db::{self, Db, Repo, SettingKey};
 use crate::events::Event;
 use crate::github;
 use crate::scheduler;
@@ -22,7 +22,7 @@ pub fn set_check_interval(db: State<'_, Db>, minutes: u64) -> Result<(), String>
     if minutes < 1 {
         return Err("interval must be at least 1 minute".to_string());
     }
-    db.with(|c| db::set_setting(c, scheduler::SETTING_INTERVAL, &minutes.to_string()))
+    db.with(|c| db::set_setting(c, SettingKey::CheckIntervalMinutes, &minutes.to_string()))
         .map_err(e)
 }
 
@@ -36,7 +36,7 @@ pub fn get_check_on_startup(db: State<'_, Db>) -> Result<bool, String> {
 #[tauri::command]
 pub fn set_check_on_startup(db: State<'_, Db>, enabled: bool) -> Result<(), String> {
     let value = if enabled { "1" } else { "0" };
-    db.with(|c| db::set_setting(c, scheduler::SETTING_CHECK_ON_STARTUP, value))
+    db.with(|c| db::set_setting(c, SettingKey::CheckOnStartup, value))
         .map_err(e)
 }
 
@@ -55,7 +55,7 @@ pub fn set_check_self_update<R: tauri::Runtime>(
     enabled: bool,
 ) -> Result<(), String> {
     let value = if enabled { "1" } else { "0" };
-    db.with(|c| db::set_setting(c, selfupdate::SETTING_CHECK_SELF_UPDATE, value))
+    db.with(|c| db::set_setting(c, SettingKey::SelfUpdate, value))
         .map_err(e)?;
 
     if !enabled {
