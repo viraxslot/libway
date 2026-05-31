@@ -32,6 +32,10 @@ pub async fn check_all<R: Runtime>(
 ) -> Result<Vec<Repo>> {
     let repos = db.with(db::list_repos)?;
 
+    // Warm the auth cache before fanning out, so a one-time credential prompt
+    // happens once here rather than racing across the concurrent requests.
+    github_client.prepare();
+
     let results: Vec<(Repo, Result<LatestVersion>)> = stream::iter(repos)
         .map(|repo| async move {
             let latest = github_client.fetch_latest(&repo.owner, &repo.name).await;

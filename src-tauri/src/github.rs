@@ -5,6 +5,7 @@
 //! tag from `tags`. Version comparison uses semver, with a fallback to string
 //! comparison for tags that do not parse as semver.
 
+use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
@@ -115,11 +116,27 @@ pub trait GitHubApi: Send + Sync {
     async fn repo_exists(&self, owner: &str, name: &str) -> Result<bool>;
     /// The latest version of `owner/name`.
     async fn fetch_latest(&self, owner: &str, name: &str) -> Result<LatestVersion>;
+    /// Warm any cached credentials up front. Calling this before a concurrent
+    /// batch keeps the (possibly blocking) Keychain prompt on a single thread
+    /// instead of racing across the batch's tasks. Default no-op.
+    fn prepare(&self) {}
+    /// Drop any cached credentials, so the next call re-reads them. Called when
+    /// the stored token changes. Default no-op for clients that don't cache.
+    fn invalidate_token_cache(&self) {}
 }
 
-/// The production client. Reads the GitHub token from the Keychain per call
-/// (so a token added at runtime is picked up without a restart).
-pub struct RealGitHub;
+/// The production client.
+///
+/// The Keychain token is read once and cached, so a run that checks many
+/// repositories doesn't trigger a macOS access prompt per request (and a
+/// denied prompt isn't re-shown for every repo). The cache is dropped via
+/// [`invalidate_token_cache`](GitHubApi::invalidate_token_cache) when the token
+/// changes, so a token added or removed at runtime is still picked up without a
+/// restart. The token only ever lives in memory here, never on disk.
+pub struct RealGitHub {
+    /// `None` until first read; `Some(maybe_token)` once cached.
+    token: Mutex<Option<Option<String>>>,
+}
 
 impl RealGitHub {
     /// Retry policy for GitHub's rate limit: a few attempts, but never wait
@@ -128,8 +145,27 @@ impl RealGitHub {
     const MAX_RETRY_DELAY: Duration = Duration::from_secs(30);
 
     pub fn new() -> Self {
-        RealGitHub
+        RealGitHub {
+            token: Mutex::new(None),
+        }
     }
+
+    /// The cached token, reading the Keychain once on first use. A read failure
+    /// is treated (and cached) as "no token", matching the previous behaviour.
+    fn token(&self) -> Option<String> {
+        cached_or_load(&self.token, || keychain::get_token().unwrap_or(None))
+    }
+}
+
+/// Return the cached value, computing and storing it with `load` on first use.
+/// Split out so the cache-once / invalidate behaviour is testable without the
+/// Keychain.
+fn cached_or_load<T: Clone>(cache: &Mutex<Option<T>>, load: impl FnOnce() -> T) -> T {
+    cache
+        .lock()
+        .expect("token cache mutex poisoned")
+        .get_or_insert_with(load)
+        .clone()
 }
 
 impl Default for RealGitHub {
@@ -141,12 +177,56 @@ impl Default for RealGitHub {
 #[async_trait]
 impl GitHubApi for RealGitHub {
     async fn repo_exists(&self, owner: &str, name: &str) -> Result<bool> {
-        let token = keychain::get_token().unwrap_or(None);
-        repo_exists(owner, name, token.as_deref()).await
+        repo_exists(owner, name, self.token().as_deref()).await
     }
 
     async fn fetch_latest(&self, owner: &str, name: &str) -> Result<LatestVersion> {
-        let token = keychain::get_token().unwrap_or(None);
-        fetch_latest(owner, name, token.as_deref()).await
+        fetch_latest(owner, name, self.token().as_deref()).await
+    }
+
+    fn prepare(&self) {
+        self.token();
+    }
+
+    fn invalidate_token_cache(&self) {
+        *self.token.lock().expect("token cache mutex poisoned") = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn cached_or_load_reads_once_then_reuses() {
+        let cache: Mutex<Option<u32>> = Mutex::new(None);
+        let loads = Cell::new(0);
+        let load = || {
+            loads.set(loads.get() + 1);
+            42
+        };
+
+        assert_eq!(cached_or_load(&cache, load), 42);
+        assert_eq!(cached_or_load(&cache, load), 42);
+        assert_eq!(loads.get(), 1, "loader must run only on the first call");
+    }
+
+    #[test]
+    fn clearing_the_cache_forces_a_reload() {
+        let cache: Mutex<Option<u32>> = Mutex::new(None);
+        let loads = Cell::new(0);
+        let load = || {
+            loads.set(loads.get() + 1);
+            loads.get()
+        };
+
+        assert_eq!(cached_or_load(&cache, load), 1);
+        *cache.lock().unwrap() = None;
+        assert_eq!(cached_or_load(&cache, load), 2, "reload after invalidation");
+        assert_eq!(loads.get(), 2);
     }
 }

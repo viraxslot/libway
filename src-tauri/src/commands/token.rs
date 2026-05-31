@@ -1,6 +1,9 @@
 //! Commands for managing the GitHub token stored in the system Keychain.
 
+use tauri::State;
+
 use super::e;
+use crate::github::GitHubApi;
 use crate::keychain;
 
 #[tauri::command]
@@ -27,17 +30,22 @@ fn classify_token(input: &str) -> TokenAction<'_> {
 }
 
 #[tauri::command]
-pub fn set_token(token: String) -> Result<(), String> {
-    match classify_token(&token) {
+pub fn set_token(token: String, client: State<'_, Box<dyn GitHubApi>>) -> Result<(), String> {
+    let result = match classify_token(&token) {
         // Empty input means "clear the token".
-        TokenAction::Clear => keychain::delete_token().map_err(e),
-        TokenAction::Store(t) => keychain::set_token(t).map_err(e),
-    }
+        TokenAction::Clear => keychain::delete_token(),
+        TokenAction::Store(t) => keychain::set_token(t),
+    };
+    // The client caches the token; drop the cache so the change takes effect.
+    client.invalidate_token_cache();
+    result.map_err(e)
 }
 
 #[tauri::command]
-pub fn clear_token() -> Result<(), String> {
-    keychain::delete_token().map_err(e)
+pub fn clear_token(client: State<'_, Box<dyn GitHubApi>>) -> Result<(), String> {
+    let result = keychain::delete_token();
+    client.invalidate_token_cache();
+    result.map_err(e)
 }
 
 #[cfg(test)]
