@@ -7,6 +7,7 @@ pub mod db;
 pub mod events;
 pub mod github;
 mod http;
+mod i18n;
 mod keychain;
 mod migrations;
 mod notify;
@@ -15,7 +16,6 @@ mod selfupdate;
 mod tray;
 mod util;
 mod version;
-mod i18n;
 
 use std::error::Error;
 
@@ -44,7 +44,7 @@ pub fn run() {
             commands::delete_tag,
             commands::mark_seen,
             commands::mark_all_seen,
-            // Settings 
+            // Settings
             commands::check_now,
             commands::get_check_interval,
             commands::set_check_interval,

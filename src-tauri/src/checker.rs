@@ -97,7 +97,8 @@ fn apply_result<R: Runtime>(
     // Only notify when this is not the very first discovery, i.e. we already
     // had a known version before.
     if repo.latest_version.is_some() {
-        notify::notify_new_version(app, &repo, &latest.version);
+        let lang = crate::i18n::Language::from_settings(db);
+        notify::notify_new_version(app, lang, &repo, &latest.version);
     }
     Ok(Some(repo))
 }

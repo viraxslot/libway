@@ -4,6 +4,7 @@ use tauri::{AppHandle, Runtime};
 use tauri_plugin_notification::{NotificationExt, PermissionState};
 
 use crate::db::Repo;
+use crate::i18n::{tr, Language};
 
 /// Request notification permission at startup if it has not been granted yet.
 /// Without this, `show()` silently fails on macOS.
@@ -31,26 +32,31 @@ fn show<R: Runtime>(app: &AppHandle<R>, title: impl Into<String>, body: impl Int
 }
 
 /// Notify the user that a tracked repository has a new version.
-pub fn notify_new_version<R: Runtime>(app: &AppHandle<R>, repo: &Repo, version: &str) {
+pub fn notify_new_version<R: Runtime>(
+    app: &AppHandle<R>,
+    lang: Language,
+    repo: &Repo,
+    version: &str,
+) {
     show(
         app,
         format!("{}/{}", repo.owner, repo.name),
-        format!("New version: {version}"),
+        tr::new_version(lang, version),
     );
 }
 
 /// Notify the user of the result of a manual "Check now" run.
-pub fn notify_check_result<R: Runtime>(app: &AppHandle<R>, updated: &[Repo]) {
+pub fn notify_check_result<R: Runtime>(app: &AppHandle<R>, lang: Language, updated: &[Repo]) {
     match updated.len() {
-        0 => show(app, "libway", "All repositories are up to date."),
+        0 => show(app, "libway", tr::notify_all_up_to_date(lang)),
         1 => {
             let r = &updated[0];
             show(
                 app,
                 "libway",
-                format!("Update found: {}/{}", r.owner, r.name),
+                tr::update_found(lang, &format!("{}/{}", r.owner, r.name)),
             );
         }
-        n => show(app, "libway", format!("{n} updates found.")),
+        n => show(app, "libway", tr::updates_found(lang, n as u64)),
     }
 }

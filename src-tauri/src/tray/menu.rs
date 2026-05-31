@@ -10,46 +10,43 @@ use super::{
     ID_ABOUT_GITHUB, ID_CHECK_NOW, ID_MARK_ALL, ID_QUIT, ID_SELF_UPDATE, ID_SETTINGS, REPO_PREFIX,
 };
 use crate::db::Repo;
+use crate::i18n::{tr, Language};
 use crate::util::now;
-
-/// Tag bucket name for repositories without any tags.
-const UNGROUPED: &str = "Ungrouped";
 
 /// A human "N minutes ago" string for `ts` relative to `now` (both unix
 /// seconds). A future timestamp (clock skew) clamps to "just now".
-fn relative_time_from(now: i64, ts: i64) -> String {
+fn relative_time_from(lang: Language, now: i64, ts: i64) -> String {
     let secs = (now - ts).max(0);
     if secs < 60 {
-        "just now".to_string()
+        tr::just_now(lang).to_string()
     } else if secs < 3600 {
-        format!("{}m ago", secs / 60)
+        tr::minutes_ago(lang, secs / 60)
     } else if secs < 86400 {
-        format!("{}h ago", secs / 3600)
+        tr::hours_ago(lang, secs / 3600)
     } else {
-        format!("{}d ago", secs / 86400)
+        tr::days_ago(lang, secs / 86400)
     }
 }
 
 /// The non-clickable status line shown at the top of the menu.
-fn status_label(repos: &[Repo]) -> String {
+fn status_label(lang: Language, repos: &[Repo]) -> String {
     let unseen = repos.iter().filter(|r| r.has_unseen).count();
     let head = match unseen {
-        0 => "All up to date".to_string(),
-        1 => "1 update".to_string(),
-        n => format!("{n} updates"),
+        0 => tr::all_up_to_date(lang).to_string(),
+        n => tr::updates_count(lang, n as u64),
     };
     // Most recent successful check across repos — "last activity".
     let last = repos.iter().filter_map(|r| r.last_checked_at).max();
-    format!("{head} · {}", status_suffix(last, now()))
+    format!("{head} · {}", status_suffix(lang, last, now()))
 }
 
 /// The "· checked …" / "· not checked yet" tail of the status line, given the
 /// most recent check timestamp (if any). Pure, so the min/max choice and
 /// wording stay testable without the clock.
-fn status_suffix(last: Option<i64>, now: i64) -> String {
+fn status_suffix(lang: Language, last: Option<i64>, now: i64) -> String {
     match last {
-        Some(ts) => format!("checked {}", relative_time_from(now, ts)),
-        None => "not checked yet".to_string(),
+        Some(ts) => tr::checked_ago(lang, &relative_time_from(lang, now, ts)),
+        None => tr::not_checked_yet(lang).to_string(),
     }
 }
 
@@ -122,30 +119,38 @@ fn repo_node(repo: &Repo) -> MenuNode {
     MenuNode::item(format!("{REPO_PREFIX}{}", repo.id), repo_label(repo), true)
 }
 
-/// Label for a tag group submenu: "tag (count) ●" (● when any member unseen).
-fn group_label(tag: &str, members: &[&Repo]) -> String {
+/// Label for a tag group submenu: "name (count) ●" (● when any member unseen).
+fn group_label(name: &str, members: &[&Repo]) -> String {
     let mark = if members.iter().any(|r| r.has_unseen) {
         " ●"
     } else {
         ""
     };
-    format!("{tag} ({}){mark}", members.len())
+    format!("{name} ({}){mark}", members.len())
 }
 
-/// A tag group as a submenu containing its repositories.
+/// A tag group as a submenu containing its repositories. The tag name is used
+/// for both the stable id and the visible label.
 fn group_node(tag: &str, members: &[&Repo]) -> MenuNode {
+    group_node_with_label(tag, tag, members)
+}
+
+/// Like `group_node`, but with a separate stable `id` and visible `name`. Used
+/// by the "Ungrouped" bucket, whose id must stay constant while its label is
+/// localized.
+fn group_node_with_label(id: &str, name: &str, members: &[&Repo]) -> MenuNode {
     MenuNode::Submenu {
-        id: format!("group:{tag}"),
-        label: group_label(tag, members),
+        id: format!("group:{id}"),
+        label: group_label(name, members),
         children: members.iter().map(|r| repo_node(r)).collect(),
     }
 }
 
 /// The repository section: a placeholder when empty, a flat list when no tags
 /// exist, otherwise one submenu per tag plus an "Ungrouped" bucket.
-fn repo_section(repos: &[Repo]) -> Vec<MenuNode> {
+fn repo_section(lang: Language, repos: &[Repo]) -> Vec<MenuNode> {
     if repos.is_empty() {
-        return vec![MenuNode::item("noop", "No repositories", false)];
+        return vec![MenuNode::item("noop", tr::no_repositories(lang), false)];
     }
     let tags = distinct_tags(repos);
     if tags.is_empty() {
@@ -161,16 +166,22 @@ fn repo_section(repos: &[Repo]) -> Vec<MenuNode> {
         .collect();
     let untagged: Vec<&Repo> = repos.iter().filter(|r| r.tags.is_empty()).collect();
     if !untagged.is_empty() {
-        nodes.push(group_node(UNGROUPED, &untagged));
+        // The "Ungrouped" bucket keeps a stable id ("group:Ungrouped") so click
+        // routing and tests don't depend on the localized label.
+        nodes.push(group_node_with_label(
+            "Ungrouped",
+            tr::ungrouped(lang),
+            &untagged,
+        ));
     }
     nodes
 }
 
 /// The "About" submenu node: version, authors and a link to the repository.
-fn about_node() -> MenuNode {
+fn about_node(lang: Language) -> MenuNode {
     MenuNode::Submenu {
         id: "about".into(),
-        label: "About".into(),
+        label: tr::about(lang).into(),
         children: vec![
             MenuNode::item(
                 "about_version",
@@ -179,10 +190,11 @@ fn about_node() -> MenuNode {
             ),
             // "&&" renders as a literal "&"; a single "&" is treated as a
             // mnemonic accelerator by the native menu and would be hidden.
+            // A proper name, not localized.
             MenuNode::item("about_authors", "By Alexander Vershinin && Claude", true),
             MenuNode::Separator,
             // The leading ↗ hints that this opens an external page.
-            MenuNode::item(ID_ABOUT_GITHUB, "↗ View on GitHub", true),
+            MenuNode::item(ID_ABOUT_GITHUB, tr::view_on_github(lang), true),
         ],
     }
 }
@@ -191,6 +203,7 @@ fn about_node() -> MenuNode {
 /// status line, the repository section, then the actions. Pure and
 /// unit-testable — no Tauri handle.
 fn build_menu_model(
+    lang: Language,
     repos: &[Repo],
     any_unseen: bool,
     update: Option<&crate::selfupdate::AvailableUpdate>,
@@ -200,7 +213,7 @@ fn build_menu_model(
     if let Some(update) = update {
         nodes.push(MenuNode::item(
             ID_SELF_UPDATE,
-            format!("↗ Update available: {}", update.version),
+            tr::update_available(lang, &update.version),
             true,
         ));
         nodes.push(MenuNode::Separator);
@@ -208,21 +221,21 @@ fn build_menu_model(
 
     nodes.extend([
         // Status line (disabled = non-clickable).
-        MenuNode::item("status", status_label(repos), false),
+        MenuNode::item("status", status_label(lang, repos), false),
         MenuNode::Separator,
     ]);
 
-    nodes.extend(repo_section(repos));
+    nodes.extend(repo_section(lang, repos));
 
     nodes.extend([
         MenuNode::Separator,
-        MenuNode::item(ID_CHECK_NOW, "Check now", true),
+        MenuNode::item(ID_CHECK_NOW, tr::check_now(lang), true),
         // Enabled only when there is something to clear.
-        MenuNode::item(ID_MARK_ALL, "Mark all as read", any_unseen),
-        MenuNode::item(ID_SETTINGS, "Settings…", true),
+        MenuNode::item(ID_MARK_ALL, tr::mark_all_as_read(lang), any_unseen),
+        MenuNode::item(ID_SETTINGS, tr::settings(lang), true),
         MenuNode::Separator,
-        about_node(),
-        MenuNode::item(ID_QUIT, "Quit", true),
+        about_node(lang),
+        MenuNode::item(ID_QUIT, tr::quit(lang), true),
     ]);
 
     nodes
@@ -231,12 +244,13 @@ fn build_menu_model(
 /// Build the native tray menu from the repository list.
 pub(super) fn build_menu(
     app: &AppHandle,
+    lang: Language,
     repos: &[Repo],
     any_unseen: bool,
     update: Option<&crate::selfupdate::AvailableUpdate>,
 ) -> Result<Menu<Wry>> {
     let menu = Menu::new(app)?;
-    for node in build_menu_model(repos, any_unseen, update) {
+    for node in build_menu_model(lang, repos, any_unseen, update) {
         menu.append(&render_node(app, &node)?)?;
     }
     Ok(menu)
@@ -277,51 +291,68 @@ mod tests {
     #[test]
     fn relative_time_buckets() {
         let now = 1_000_000;
-        assert_eq!(relative_time_from(now, now), "just now");
-        assert_eq!(relative_time_from(now, now - 59), "just now");
-        assert_eq!(relative_time_from(now, now - 60), "1m ago");
-        assert_eq!(relative_time_from(now, now - 3599), "59m ago");
-        assert_eq!(relative_time_from(now, now - 3600), "1h ago");
-        assert_eq!(relative_time_from(now, now - 86_399), "23h ago");
-        assert_eq!(relative_time_from(now, now - 86_400), "1d ago");
-        assert_eq!(relative_time_from(now, now - 3 * 86_400), "3d ago");
+        let en = Language::En;
+        assert_eq!(relative_time_from(en, now, now), "just now");
+        assert_eq!(relative_time_from(en, now, now - 59), "just now");
+        assert_eq!(relative_time_from(en, now, now - 60), "1m ago");
+        assert_eq!(relative_time_from(en, now, now - 3599), "59m ago");
+        assert_eq!(relative_time_from(en, now, now - 3600), "1h ago");
+        assert_eq!(relative_time_from(en, now, now - 86_399), "23h ago");
+        assert_eq!(relative_time_from(en, now, now - 86_400), "1d ago");
+        assert_eq!(relative_time_from(en, now, now - 3 * 86_400), "3d ago");
     }
 
     #[test]
     fn relative_time_clamps_future_timestamp() {
         // Clock skew: ts in the future must not produce a negative/garbage value.
-        assert_eq!(relative_time_from(1_000, 2_000), "just now");
+        assert_eq!(relative_time_from(Language::En, 1_000, 2_000), "just now");
     }
 
     #[test]
     fn status_label_pluralizes_and_handles_no_check() {
+        let en = Language::En;
         // No checks yet → no relative time, deterministic.
-        assert_eq!(status_label(&[]), "All up to date · not checked yet");
+        assert_eq!(status_label(en, &[]), "All up to date · not checked yet");
 
         let clean = Repo::sample("o", "a"); // sample has no last_checked_at
-        assert_eq!(status_label(&[clean]), "All up to date · not checked yet");
+        assert_eq!(
+            status_label(en, &[clean]),
+            "All up to date · not checked yet"
+        );
 
         let mut one = Repo::sample("o", "a");
         one.has_unseen = true;
-        let head = status_label(std::slice::from_ref(&one));
+        let head = status_label(en, std::slice::from_ref(&one));
         assert!(head.starts_with("1 update · "), "got: {head}");
 
         let mut two = Repo::sample("o", "b");
         two.has_unseen = true;
-        let head = status_label(&[one, two]);
+        let head = status_label(en, &[one, two]);
         assert!(head.starts_with("2 updates · "), "got: {head}");
+    }
+
+    #[test]
+    fn status_label_russian_pluralizes() {
+        let ru = Language::Ru;
+        assert_eq!(status_label(ru, &[]), "Всё обновлено · ещё не проверялось");
+
+        let mut one = Repo::sample("o", "a");
+        one.has_unseen = true;
+        let head = status_label(ru, std::slice::from_ref(&one));
+        assert!(head.starts_with("1 обновление · "), "got: {head}");
     }
 
     #[test]
     fn status_suffix_picks_most_recent_and_handles_never_checked() {
         let now = 10_000;
+        let en = Language::En;
         // "Last activity" = the most recent (max) check across repos: a fresh
         // check wins over an older one, so the suffix reflects 2m, not 3h.
         let last = [now - 3 * 3600, now - 120].into_iter().max();
-        assert_eq!(status_suffix(last, now), "checked 2m ago");
+        assert_eq!(status_suffix(en, last, now), "checked 2m ago");
 
         // Never checked → explicit wording, no relative time.
-        assert_eq!(status_suffix(None, now), "not checked yet");
+        assert_eq!(status_suffix(en, None, now), "not checked yet");
     }
 
     #[test]
@@ -405,7 +436,7 @@ mod tests {
     #[test]
     fn repo_section_empty_shows_placeholder() {
         assert_eq!(
-            repo_section(&[]),
+            repo_section(Language::En, &[]),
             vec![MenuNode::item("noop", "No repositories", false)]
         );
     }
@@ -414,7 +445,7 @@ mod tests {
     fn repo_section_untagged_is_flat_list() {
         // Distinct ids so the order is visible; no tags.
         let repos = vec![repo_with(1, &[]), repo_with(2, &[])];
-        let section = repo_section(&repos);
+        let section = repo_section(Language::En, &repos);
         // Flat: one leaf item per repo, no submenus.
         assert_eq!(ids(&section), vec!["repo:1", "repo:2"]);
         assert!(section.iter().all(|n| matches!(n, MenuNode::Item { .. })));
@@ -427,7 +458,7 @@ mod tests {
             repo_with(2, &["build"]),
             repo_with(3, &[]), // untagged
         ];
-        let section = repo_section(&repos);
+        let section = repo_section(Language::En, &repos);
 
         // Sorted tag groups first, then the Ungrouped bucket.
         assert_eq!(
@@ -443,7 +474,7 @@ mod tests {
     #[test]
     fn build_menu_model_has_expected_skeleton() {
         let repos = vec![Repo::sample("o", "a")];
-        let model = build_menu_model(&repos, false, None);
+        let model = build_menu_model(Language::En, &repos, false, None);
 
         assert_eq!(
             ids(&model),
@@ -467,13 +498,13 @@ mod tests {
         let repos = vec![Repo::sample("o", "a")];
 
         // The "Mark all as read" item is enabled exactly when any_unseen is set.
-        let disabled = build_menu_model(&repos, false, None);
+        let disabled = build_menu_model(Language::En, &repos, false, None);
         assert_eq!(
             find(&disabled, ID_MARK_ALL),
             &MenuNode::item(ID_MARK_ALL, "Mark all as read", false)
         );
 
-        let enabled = build_menu_model(&repos, true, None);
+        let enabled = build_menu_model(Language::En, &repos, true, None);
         assert_eq!(
             find(&enabled, ID_MARK_ALL),
             &MenuNode::item(ID_MARK_ALL, "Mark all as read", true)
@@ -487,7 +518,7 @@ mod tests {
             version: "v0.4.0".into(),
             url: "https://github.com/viraxslot/libway/releases/tag/v0.4.0".into(),
         };
-        let model = build_menu_model(&repos, false, Some(&update));
+        let model = build_menu_model(Language::En, &repos, false, Some(&update));
 
         assert_eq!(model[0].id(), ID_SELF_UPDATE);
         assert_eq!(
@@ -501,14 +532,14 @@ mod tests {
     #[test]
     fn build_menu_model_omits_update_item_when_absent() {
         let repos = vec![Repo::sample("o", "a")];
-        let model = build_menu_model(&repos, false, None);
+        let model = build_menu_model(Language::En, &repos, false, None);
         assert_eq!(model[0].id(), "status");
         assert!(model.iter().all(|n| n.id() != ID_SELF_UPDATE));
     }
 
     #[test]
     fn about_node_links_to_github() {
-        let about = about_node();
+        let about = about_node(Language::En);
         assert_eq!(about.id(), "about");
         // The external link item is present with the GitHub id.
         assert!(about.children().iter().any(|c| c.id() == ID_ABOUT_GITHUB));

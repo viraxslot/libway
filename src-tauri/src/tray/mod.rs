@@ -19,6 +19,7 @@ use tauri::{
 
 use crate::db::{self, Db};
 use crate::events::Event;
+use crate::i18n::Language;
 use crate::selfupdate::SelfUpdate;
 
 mod events;
@@ -55,17 +56,24 @@ pub fn create(app: &AppHandle) -> Result<()> {
 
     app.manage(TrayState(Mutex::new(Some(tray))));
 
-    // Rebuild the tray menu whenever the repository list changes. Commands
-    // and the background checker emit `repos:updated`; we refresh from here so
-    // the command layer does not depend on the tray (and stays testable on
-    // MockRuntime). refresh() does not emit, so this does not recurse.
-    let handle = app.clone();
-    app.listen(Event::ReposUpdated.as_str(), move |_event| {
-        let db = handle.state::<Db>();
-        if let Err(e) = refresh(&handle, &db) {
-            eprintln!("libway: tray refresh failed: {e:#}");
-        }
-    });
+    // Rebuild the tray menu whenever the repository list or the language
+    // changes. Commands and the background checker emit these events; we
+    // refresh from here so the command layer does not depend on the tray (and
+    // stays testable on MockRuntime). refresh() does not emit, so this does
+    // not recurse.
+    for event in [
+        Event::ReposUpdated,
+        Event::LanguageChanged,
+        Event::SelfUpdateChanged,
+    ] {
+        let handle = app.clone();
+        app.listen(event.as_str(), move |_event| {
+            let db = handle.state::<Db>();
+            if let Err(e) = refresh(&handle, &db) {
+                eprintln!("libway: tray refresh failed: {e:#}");
+            }
+        });
+    }
 
     // Build the initial menu from current data.
     let db = app.state::<Db>();
@@ -78,7 +86,8 @@ pub fn refresh(app: &AppHandle, db: &Db) -> Result<()> {
         db.with(|c| Ok::<_, anyhow::Error>((db::list_repos(c)?, db::any_unseen(c)?)))?;
 
     let update = app.state::<SelfUpdate>().get();
-    let menu = menu::build_menu(app, &repos, any_unseen, update.as_ref())?;
+    let lang = Language::from_settings(db);
+    let menu = menu::build_menu(app, lang, &repos, any_unseen, update.as_ref())?;
 
     let state = app.state::<TrayState>();
     let guard = state.0.lock().unwrap();

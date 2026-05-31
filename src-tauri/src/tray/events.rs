@@ -40,7 +40,10 @@ pub(super) fn handle_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) 
                 let db = app.state::<Db>();
                 let client = app.state::<Box<dyn crate::github::GitHubApi>>();
                 match crate::checker::check_all(&app, &db, client.inner().as_ref()).await {
-                    Ok(updated) => crate::notify::notify_check_result(&app, &updated),
+                    Ok(updated) => {
+                        let lang = crate::i18n::Language::from_settings(&db);
+                        crate::notify::notify_check_result(&app, lang, &updated);
+                    }
                     Err(e) => eprintln!("libway: manual check failed: {e:#}"),
                 }
             });

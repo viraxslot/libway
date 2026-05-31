@@ -61,7 +61,7 @@ pub fn set_check_self_update<R: tauri::Runtime>(
 
     if !enabled {
         app.state::<SelfUpdate>().set(None);
-        let _ = app.emit(Event::ReposUpdated.as_str(), ());
+        let _ = app.emit(Event::SelfUpdateChanged.as_str(), ());
     }
     Ok(())
 }
@@ -85,8 +85,20 @@ pub fn get_language(db: State<'_, Db>) -> Result<String, String> {
     Ok(lang.as_code().to_string())
 }
 
+/// Persist the chosen language and refresh the tray so its menu re-renders in
+/// the new language immediately. The frontend updates itself via i18next.
 #[tauri::command]
-pub fn set_language(db: State<'_, Db>, value: &str) -> Result<(), String> {
+pub fn set_language<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    db: State<'_, Db>,
+    value: &str,
+) -> Result<(), String> {
     db.with(|c| db::set_setting(c, SettingKey::Language, value))
-        .map_err(e)
+        .map_err(e)?;
+
+    // The tray listens for `language:changed` and rebuilds its menu (reading
+    // the language from settings), so emitting here re-renders it in the new
+    // language without coupling this command to the tray module.
+    let _ = app.emit(Event::LanguageChanged.as_str(), ());
+    Ok(())
 }

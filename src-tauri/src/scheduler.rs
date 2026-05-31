@@ -117,9 +117,10 @@ async fn run_check(app: &AppHandle) {
 
     // Self-update state changes outside the DB, so emit a refresh afterwards so
     // the tray reflects a newly-found (or cleared) update. `check_all` already
-    // emitted once for repo changes; this final emit covers the self-update.
+    // emitted `repos:updated` for repo changes; this final emit covers the
+    // self-update specifically.
     crate::selfupdate::check(app, &db, client.inner().as_ref()).await;
-    let _ = app.emit(crate::events::Event::ReposUpdated.as_str(), ());
+    let _ = app.emit(crate::events::Event::SelfUpdateChanged.as_str(), ());
 }
 
 #[cfg(test)]

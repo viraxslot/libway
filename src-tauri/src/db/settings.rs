@@ -8,7 +8,7 @@ pub enum SettingKey {
     CheckIntervalMinutes,
     CheckOnStartup,
     SelfUpdate,
-    Language
+    Language,
 }
 
 impl SettingKey {
@@ -17,7 +17,7 @@ impl SettingKey {
             SettingKey::CheckIntervalMinutes => "check_interval_minutes",
             SettingKey::CheckOnStartup => "check_on_startup",
             SettingKey::SelfUpdate => "self_update",
-            SettingKey::Language => "language"
+            SettingKey::Language => "language",
         }
     }
 }

@@ -7,6 +7,11 @@
 pub enum Event {
     /// The repository list or any repo's state changed; listeners refresh.
     ReposUpdated,
+    /// The UI language changed; the tray rebuilds its menu in the new language.
+    LanguageChanged,
+    /// The self-update state changed (a new update was found or cleared); the
+    /// tray rebuilds so its "Update available" item appears/disappears.
+    SelfUpdateChanged,
 }
 
 impl Event {
@@ -14,6 +19,8 @@ impl Event {
     pub fn as_str(self) -> &'static str {
         match self {
             Event::ReposUpdated => "repos:updated",
+            Event::LanguageChanged => "language:changed",
+            Event::SelfUpdateChanged => "self_update:changed",
         }
     }
 }
