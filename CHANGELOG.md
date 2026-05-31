@@ -1,3 +1,9 @@
+## [0.4.1] "Hidden Owl" - 2026-05-31
+
+### 🚀 Features
+
+- *(settings)* Group "Launch at login" under a System heading
+
 ## [0.4.0] "Restless Viper" - 2026-05-30
 
 ### 🚀 Features
