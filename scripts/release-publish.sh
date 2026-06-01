@@ -60,7 +60,17 @@ TITLE="$TAG \"$RELEASE_CODENAME\""
 echo "Creating GitHub release ${TAG} (${RELEASE_CODENAME})..."
 NOTES_FILE="$(mktemp)"
 trap 'rm -f "$NOTES_FILE"' EXIT
-git-cliff --current --tag "$TAG" -x 2>/dev/null \
+# Scope git-cliff to this release. Locally the tag already exists, so --current
+# selects its section; in CI the tag is created later (below), so --unreleased
+# picks up the not-yet-tagged commits and --tag names them. Using --current
+# without an existing tag fails with empty output, which would silently fall
+# back to GitHub's auto-notes.
+if git rev-parse "$TAG" >/dev/null 2>&1; then
+  CLIFF_SCOPE="--current"
+else
+  CLIFF_SCOPE="--unreleased"
+fi
+git-cliff "$CLIFF_SCOPE" --tag "$TAG" -x 2>/dev/null \
   | bun scripts/changelog-codenames.mjs "$CODENAME_BIN" \
   | git-cliff --from-context - --strip header > "$NOTES_FILE" 2>/dev/null || true
 

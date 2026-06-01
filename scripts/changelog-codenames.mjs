@@ -16,10 +16,20 @@ if (!codenameBin) {
   process.exit(1);
 }
 
-const releases = JSON.parse(readFileSync(0, "utf8"));
+const input = readFileSync(0, "utf8").trim();
+if (!input) {
+  console.error(
+    "changelog-codenames.mjs: empty stdin — the upstream git-cliff produced no context",
+  );
+  process.exit(1);
+}
+
+const releases = JSON.parse(input);
 for (const release of releases) {
   // Unreleased sections have a null version and get no codename.
-  if (!release.version) continue;
+  if (!release.version) { 
+    continue;
+  }
   const codename = execFileSync(codenameBin, [release.version], {
     encoding: "utf8",
   }).trim();
