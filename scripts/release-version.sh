@@ -40,9 +40,15 @@ cargo update -p libway --manifest-path src-tauri/Cargo.toml >/dev/null 2>&1 || t
 # scripts/changelog.sh derives each release's codename from its own version.
 bash scripts/changelog.sh --tag "v$VERSION"
 
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
-git commit -m "chore(release): v$VERSION"
-git tag "v$VERSION"
+if [ "${NO_GIT:-}" = "1" ]; then
+  # CI prepares the branch, commit, and PR itself; just leave the edited
+  # files in the working tree.
+  echo "Bumped to v$VERSION (NO_GIT=1: skipped commit and tag)."
+else
+  git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock CHANGELOG.md
+  git commit -m "chore(release): v$VERSION"
+  git tag "v$VERSION"
 
-echo "Committed and tagged v$VERSION."
-echo "Next: bun run release:publish"
+  echo "Committed and tagged v$VERSION."
+  echo "Next: bun run release:publish"
+fi
