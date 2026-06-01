@@ -1,0 +1,59 @@
+name: 🐛 Bug report
+description: Report something that isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in the
+        details below so the problem can be reproduced.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug and what you expected instead.
+      placeholder: |
+        When I ... I expected ..., but instead ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the settings window
+        2. Add repository '...'
+        3. Wait for the next check
+        4. See error
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: libway version
+      description: Shown in the settings window, or the name of the `.dmg` you installed.
+      placeholder: "v0.4.1"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "15.5 (Sequoia)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: |
+        Any relevant error output, console logs, or screenshots.
+        This will be automatically formatted as code, so no need for backticks.
+      render: shell
+    validations:
+      required: false
