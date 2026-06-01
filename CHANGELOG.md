@@ -1,16 +1,28 @@
-## [unreleased]
+## [0.4.2] "Radiant Yak" - 2026-06-01
 
 ### 🚀 Features
 
 - *(checker)* Check repositories concurrently with rate-limit handling
+- *(ci)* Added release pipeline
 
 ### 🐛 Bug Fixes
 
 - *(github)* Cache the Keychain token to avoid repeated access prompts
+- *(template)* Changed macos placeholder
+- *(format)* Formatted rs file and updated lint-staged settings
+- *(repo)* Clear error message on change
+
+### 🚜 Refactor
+
+- *(db)* Added SettingKey enum instead of string
 
 ### 📚 Documentation
 
 - Cap commit subject at 10 words
+
+### ⚙️ Miscellaneous Tasks
+
+- *(gh)* Added templates
 
 ## [0.4.1] "Hidden Owl" - 2026-05-31
 
