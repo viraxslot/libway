@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { clearToken, hasToken, setToken } from "@/api";
 import Button from "@/components/ui/Button/Button";
+import ConfirmDialog from "@/components/ui/ConfirmDialog/ConfirmDialog";
 import Input from "@/components/ui/Input/Input";
 
 /** GitHub token input. The value is stored in the macOS Keychain, never shown. */
@@ -8,6 +9,7 @@ export default function TokenSettings() {
   const [stored, setStored] = useState(false);
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     hasToken()
@@ -27,6 +29,7 @@ export default function TokenSettings() {
   }
 
   async function remove() {
+    setConfirming(false);
     setBusy(true);
     try {
       await clearToken();
@@ -59,13 +62,23 @@ export default function TokenSettings() {
           <Button
             variant="secondary"
             type="button"
-            onClick={remove}
+            onClick={() => setConfirming(true)}
             disabled={busy}
           >
             Remove
           </Button>
         )}
       </div>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Remove GitHub token"
+          message="Remove the saved token from the Keychain? API requests will fall back to the lower unauthenticated rate limit."
+          confirmLabel="Remove token"
+          onConfirm={remove}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </section>
   );
 }
