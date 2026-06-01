@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type ChangeEvent, type SyntheticEvent, useState } from "react";
 import Button from "@/components/ui/Button/Button";
 import Input from "@/components/ui/Input/Input";
 
@@ -12,7 +12,7 @@ export default function AddRepoForm({ onAdd }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(ev: FormEvent) {
+  async function submit(ev: SyntheticEvent) {
     ev.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) {
@@ -30,13 +30,20 @@ export default function AddRepoForm({ onAdd }: Props) {
     }
   }
 
+  function handleOnChange(e: ChangeEvent<HTMLInputElement>) {
+    setValue(e.target.value);
+    if (error) {
+      setError(null);
+    }
+  }
+
   return (
     <form className="add-form" onSubmit={submit}>
       <Input
         type="text"
         placeholder="owner/repo"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={handleOnChange}
         disabled={busy}
         spellCheck={false}
         autoCapitalize="off"
