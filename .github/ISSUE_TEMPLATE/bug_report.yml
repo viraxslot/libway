@@ -43,7 +43,7 @@ body:
     id: macos-version
     attributes:
       label: macOS version
-      placeholder: "15.5 (Sequoia)"
+      placeholder: "26.5 (Tahoe)"
     validations:
       required: true
 
