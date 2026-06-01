@@ -15,7 +15,7 @@ impl SettingKey {
         match self {
             SettingKey::CheckIntervalMinutes => "check_interval_minutes",
             SettingKey::CheckOnStartup => "check_on_startup",
-            SettingKey::SelfUpdate => "self_update"
+            SettingKey::SelfUpdate => "self_update",
         }
     }
 }
