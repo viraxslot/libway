@@ -69,7 +69,7 @@ jobs:
       # PR in one step. The PAT (via checkout above) makes the required checks
       # run on the PR. Fails cleanly if the branch already exists.
       - name: Create release PR
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.RELEASE_PAT }}
           branch: release/v${{ steps.ver.outputs.version }}
