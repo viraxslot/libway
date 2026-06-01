@@ -1,3 +1,9 @@
+## [0.4.3] "Wandering Stoat" - 2026-06-01
+
+### 🐛 Bug Fixes
+
+- *(ci)* Fix release scripts
+
 ## [0.4.2] "Radiant Yak" - 2026-06-01
 
 ### 🚀 Features
