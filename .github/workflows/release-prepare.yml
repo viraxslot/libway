@@ -1,0 +1,78 @@
+name: Release — Prepare
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump level"
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Prepare release PR
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history so git-cliff can read all tags for the changelog.
+          fetch-depth: 0
+          # Use a PAT so the PR's commits are authored by a real user and the
+          # required Frontend/Backend checks run (GITHUB_TOKEN would suppress them).
+          token: ${{ secrets.RELEASE_PAT }}
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Set up Rust toolchain
+        # Pin to the version in mise.toml so CI matches the local toolchain.
+        uses: dtolnay/rust-toolchain@1.96
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Edit version files + regenerate CHANGELOG.md without any git ops;
+      # this workflow owns the branch, commit, and PR. Pass the input via env
+      # rather than interpolating it into the command line.
+      - name: Bump version and changelog
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: NO_GIT=1 bash scripts/release-version.sh "$BUMP"
+
+      - name: Read new version
+        id: ver
+        run: echo "version=$(bun -e "console.log(require('./package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      # Commit the bumped files, create the release/vX.Y.Z branch, and open the
+      # PR in one step. The PAT (via checkout above) makes the required checks
+      # run on the PR. Fails cleanly if the branch already exists.
+      - name: Create release PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          branch: release/v${{ steps.ver.outputs.version }}
+          title: "chore(release): v${{ steps.ver.outputs.version }}"
+          commit-message: "chore(release): v${{ steps.ver.outputs.version }}"
+          body: "Automated release PR for v${{ steps.ver.outputs.version }}. Merge with a **merge commit** to publish."
