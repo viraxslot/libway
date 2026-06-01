@@ -1,3 +1,9 @@
+## [0.4.4] "Crimson Salmon" - 2026-06-01
+
+### 🐛 Bug Fixes
+
+- *(token)* Added confirmation dialog for token removing
+
 ## [0.4.3] "Wandering Stoat" - 2026-06-01
 
 ### 🐛 Bug Fixes
