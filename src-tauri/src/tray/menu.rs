@@ -179,7 +179,7 @@ fn about_node() -> MenuNode {
             ),
             // "&&" renders as a literal "&"; a single "&" is treated as a
             // mnemonic accelerator by the native menu and would be hidden.
-            MenuNode::item("about_authors", "By Alexander Vershinin && Claude", true),
+            MenuNode::item("about_authors", "By Alex && Roga && Claude", true),
             MenuNode::Separator,
             // The leading ↗ hints that this opens an external page.
             MenuNode::item(ID_ABOUT_GITHUB, "↗ View on GitHub", true),
