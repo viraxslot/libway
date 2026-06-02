@@ -1,8 +1,15 @@
+## [0.4.5] "Amber Beaver" - 2026-06-02
+
+### ⚙️ Miscellaneous Tasks
+
+- *(about)* Added Roga to co-authors
+
 ## [0.4.4] "Crimson Salmon" - 2026-06-01
 
 ### 🐛 Bug Fixes
 
 - *(token)* Added confirmation dialog for token removing
+- *(ci)* Updated action
 
 ## [0.4.3] "Wandering Stoat" - 2026-06-01
 
